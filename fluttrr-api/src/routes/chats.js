@@ -158,18 +158,20 @@ router.post('/:id/messages', requireAuth, messageLimiter, validate(sendMessageSc
 
     const sanitized = sanitizeContent(req.body.content);
 
-    // Auto-moderation: flag harmful messages (only when sender is a user, since reportedById FK points to User)
+    // Auto-moderation: flag harmful messages
     const modResult = checkContent(sanitized);
-    if (modResult.flagged && modResult.severity === 'high' && req.accountType === 'user') {
-      prisma.report.create({
-        data: {
-          reportType: 'MESSAGE',
-          targetId: req.params.id,
-          reportedById: req.user.id,
-          reason: 'Auto-flagged: ' + modResult.reason,
-          details: sanitized.substring(0, 500),
-        },
-      }).catch(() => {});
+    if (modResult.flagged && modResult.severity === 'high') {
+      // reportedById FK points to User; for business senders, use a null-safe approach
+      const reportData = {
+        reportType: 'MESSAGE',
+        targetId: req.params.id,
+        reason: 'Auto-flagged: ' + modResult.reason,
+        details: `[${req.accountType}:${getMemberId(req)}] ${sanitized.substring(0, 500)}`,
+      };
+      if (req.accountType === 'user') {
+        reportData.reportedById = req.user.id;
+      }
+      prisma.report.create({ data: reportData }).catch(() => {});
     }
 
     const message = await prisma.message.create({
@@ -229,7 +231,7 @@ router.post('/:id/messages', requireAuth, messageLimiter, validate(sendMessageSc
       })
       .map((m) => {
         const token = m.user?.fcmToken || m.business?.fcmToken;
-        return token ? { to: token, title: senderName, body: req.body.content.substring(0, 100), data: { chatId: req.params.id, type: 'CHAT_MESSAGE' } } : null;
+        return token ? { to: token, title: senderName, body: sanitized.substring(0, 100), data: { chatId: req.params.id, type: 'CHAT_MESSAGE' } } : null;
       })
       .filter(Boolean);
 
@@ -248,7 +250,7 @@ router.post('/:id/messages', requireAuth, messageLimiter, validate(sendMessageSc
           userId,
           type: 'CHAT_MESSAGE',
           title: senderName,
-          body: req.body.content.substring(0, 100),
+          body: sanitized.substring(0, 100),
           data: { chatId: req.params.id },
         })),
       }).catch(() => {});

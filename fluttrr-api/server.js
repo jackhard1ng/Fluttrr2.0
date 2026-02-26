@@ -24,7 +24,7 @@ app.set('views', path.join(__dirname, 'views'));
 
 // ─── CORS ────────────────────────────────────────────────
 
-const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map((o) => o.trim());
+const allowedOrigins = (process.env.CORS_ORIGIN || '').split(',').map((o) => o.trim()).filter(Boolean);
 
 app.use(
   cors({
@@ -85,12 +85,22 @@ const io = new Server(server, {
 });
 
 // Socket auth middleware
-io.use((socket, next) => {
+io.use(async (socket, next) => {
   const token = socket.handshake.auth.token;
   if (!token) return next(new Error('Authentication required'));
 
   try {
     const payload = verifyToken(token);
+
+    // Verify the entity actually exists in the database
+    if (payload.type === 'user') {
+      const user = await prisma.user.findUnique({ where: { id: payload.id }, select: { id: true } });
+      if (!user) return next(new Error('User not found'));
+    } else if (payload.type === 'business') {
+      const biz = await prisma.business.findUnique({ where: { id: payload.id }, select: { id: true } });
+      if (!biz) return next(new Error('Business not found'));
+    }
+
     socket.userId = payload.id;
     socket.userType = payload.type;
     next();

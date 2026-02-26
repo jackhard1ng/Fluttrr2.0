@@ -30,7 +30,7 @@ export default function NotificationsScreen() {
     try {
       setError(null);
       const { data } = await usersApi.getNotifications();
-      setNotifications(data.data);
+      setNotifications(data.notifications);
     } catch (err) {
       setError(extractErrorMessage(err));
     }

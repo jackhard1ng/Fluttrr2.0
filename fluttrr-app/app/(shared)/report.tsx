@@ -27,7 +27,7 @@ export default function ReportScreen() {
   const { targetId, targetType } = useLocalSearchParams<{ targetId: string; targetType?: string }>();
   const [submitting, setSubmitting] = useState(false);
 
-  const handleReport = async (reportType: string) => {
+  const handleReport = async (reason: string) => {
     if (!targetId) {
       Alert.alert('Error', 'Missing target');
       return;
@@ -37,8 +37,8 @@ export default function ReportScreen() {
     try {
       await usersApi.report({
         targetId,
-        reportType,
-        reason: reportType,
+        reportType: targetType || 'OTHER',
+        reason,
       });
       Alert.alert('Report Submitted', 'Thank you for helping keep Fluttrr safe.', [
         { text: 'OK', onPress: () => router.back() },

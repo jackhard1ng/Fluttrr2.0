@@ -50,6 +50,7 @@ export interface Business {
   photos: string[];
   verified: boolean;
   status: BusinessStatus;
+  subscriptionTier: string;
   stripeCustomerId: string | null;
   stripeSubId: string | null;
   fcmToken: string | null;
@@ -91,6 +92,7 @@ export interface EventAttendee {
   eventId: string;
   userId: string;
   status: AttendeeStatus;
+  guestCount: number;
   joinedAt: string;
   user?: User;
   event?: Event;
@@ -146,7 +148,7 @@ export interface Report {
   id: string;
   reportType: ReportType;
   targetId: string;
-  reportedById: string;
+  reportedById: string | null;
   reason: string;
   details: string | null;
   status: ReportStatus;

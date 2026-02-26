@@ -1,6 +1,6 @@
 import client from './client';
 import type { User, Notification } from '@/types/models';
-import type { PaginatedResponse, UpdateUserData } from '@/types/api';
+import type { UpdateUserData } from '@/types/api';
 
 export const usersApi = {
   getMe() {
@@ -16,7 +16,13 @@ export const usersApi = {
   },
 
   getNotifications(params?: { page?: number }) {
-    return client.get<PaginatedResponse<Notification>>('/api/users/me/notifications', { params });
+    return client.get<{
+      notifications: Notification[];
+      total: number;
+      unreadCount: number;
+      page: number;
+      totalPages: number;
+    }>('/api/users/me/notifications', { params });
   },
 
   markAllNotificationsRead() {
