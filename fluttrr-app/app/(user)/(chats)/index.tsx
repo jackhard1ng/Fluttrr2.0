@@ -12,10 +12,12 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorView } from '@/components/ui/ErrorView';
 import { StatusDot } from '@/components/ui/Badge';
 import { chatsApi, type ChatListItem } from '@/api/chats';
 import { formatMessageTime } from '@/utils/date';
 import { truncate } from '@/utils/format';
+import { extractErrorMessage } from '@/utils/error';
 import { ChatType } from '@/types/enums';
 
 export default function ChatsListScreen() {
@@ -23,12 +25,16 @@ export default function ChatsListScreen() {
   const [chats, setChats] = useState<ChatListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchChats = useCallback(async () => {
     try {
       const { data } = await chatsApi.list();
       setChats(data.chats);
-    } catch {}
+      setError(null);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
   }, []);
 
   useEffect(() => {
@@ -113,6 +119,8 @@ export default function ChatsListScreen() {
         ListEmptyComponent={
           loading ? (
             <ActivityIndicator size="large" color={Colors.blue} style={{ marginTop: 40 }} />
+          ) : error ? (
+            <ErrorView message={error} onRetry={fetchChats} />
           ) : (
             <EmptyState
               emoji="💬"

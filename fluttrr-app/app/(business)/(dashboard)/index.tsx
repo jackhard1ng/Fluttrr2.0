@@ -11,20 +11,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
+import { ErrorView } from '@/components/ui/ErrorView';
 import { useAuthStore } from '@/stores/auth.store';
 import { businessApi, type BusinessStatsResponse } from '@/api/business';
+import { extractErrorMessage } from '@/utils/error';
 
 export default function BusinessDashboard() {
   const { business } = useAuthStore();
   const [stats, setStats] = useState<BusinessStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
     try {
       const { data } = await businessApi.getStats();
       setStats(data);
-    } catch {}
+      setError(null);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
   }, []);
 
   useEffect(() => {
@@ -56,6 +62,8 @@ export default function BusinessDashboard() {
       >
         {loading ? (
           <ActivityIndicator size="large" color={Colors.blue} style={{ marginTop: 40 }} />
+        ) : error ? (
+          <ErrorView message={error} onRetry={fetchStats} />
         ) : stats ? (
           <>
             <View style={styles.statGrid}>

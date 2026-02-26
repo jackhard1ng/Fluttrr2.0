@@ -3,6 +3,7 @@ const rateLimit = require('express-rate-limit');
 const prisma = require('../utils/prisma');
 const { requireAuth } = require('../middleware/auth');
 const { sendMessageSchema, validate } = require('../validators/schemas');
+const { sendPushNotifications } = require('../utils/pushNotifications');
 
 const router = express.Router();
 
@@ -183,6 +184,31 @@ router.post('/:id/messages', requireAuth, messageLimiter, validate(sendMessageSc
     const io = req.app.get('io');
     if (io) {
       io.to(`chat:${req.params.id}`).emit('new_message', messageWithSender);
+    }
+
+    // Push notification to other chat members (fire and forget)
+    const senderName = sender.displayName || sender.businessName || 'Someone';
+    const chatMembers = await prisma.chatMember.findMany({
+      where: { chatId: req.params.id },
+      include: {
+        user: { select: { id: true, fcmToken: true } },
+        business: { select: { id: true, fcmToken: true } },
+      },
+    });
+
+    const pushMessages = chatMembers
+      .filter((m) => {
+        const memberId = m.userId || m.businessId;
+        return memberId !== getMemberId(req);
+      })
+      .map((m) => {
+        const token = m.user?.fcmToken || m.business?.fcmToken;
+        return token ? { to: token, title: senderName, body: req.body.content.substring(0, 100), data: { chatId: req.params.id, type: 'CHAT_MESSAGE' } } : null;
+      })
+      .filter(Boolean);
+
+    if (pushMessages.length > 0) {
+      sendPushNotifications(pushMessages).catch(() => {});
     }
 
     res.status(201).json(messageWithSender);

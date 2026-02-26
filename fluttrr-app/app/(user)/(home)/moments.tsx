@@ -19,6 +19,7 @@ import { Layout } from '@/constants/layout';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorView } from '@/components/ui/ErrorView';
 import { MomentCard } from '@/components/moment/MomentCard';
 import { momentsApi, type MomentWithCounts } from '@/api/moments';
 import { extractErrorMessage } from '@/utils/error';
@@ -30,6 +31,7 @@ export default function MomentsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Create moment inline
   const [composerOpen, setComposerOpen] = useState(false);
@@ -46,7 +48,10 @@ export default function MomentsScreen() {
       }
       setHasMore(p < data.totalPages);
       setPage(p);
-    } catch {}
+      setError(null);
+    } catch (err) {
+      if (p === 1) setError(extractErrorMessage(err));
+    }
   }, []);
 
   useEffect(() => {
@@ -137,6 +142,8 @@ export default function MomentsScreen() {
         ListEmptyComponent={
           loading ? (
             <ActivityIndicator size="large" color={Colors.blue} style={{ marginTop: 40 }} />
+          ) : error ? (
+            <ErrorView message={error} onRetry={() => fetchMoments(1)} />
           ) : (
             <EmptyState
               emoji="💭"

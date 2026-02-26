@@ -138,6 +138,7 @@ export default function ProfileScreen() {
 
         {/* Menu items */}
         <Card style={styles.menuCard}>
+          <MenuItem emoji="🎉" label="My Events" onPress={() => router.push('/(user)/(profile)/my-events')} />
           <MenuItem emoji="🔔" label="Notifications" onPress={() => router.push('/(user)/(home)/notifications')} />
           <MenuItem emoji="🚫" label="Blocked Users" onPress={() => {}} />
           <MenuItem emoji="📝" label="Terms of Service" onPress={() => {}} />

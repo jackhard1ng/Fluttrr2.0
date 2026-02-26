@@ -28,10 +28,10 @@ import { formatMessageTime } from '@/utils/date';
 import { extractErrorMessage } from '@/utils/error';
 import { SenderType } from '@/types/enums';
 
-export default function ChatRoomScreen() {
+export default function BizChatRoomScreen() {
   const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
   const router = useRouter();
-  const { user, accountType } = useAuthStore();
+  const { business, accountType } = useAuthStore();
   const chatId = id || '';
 
   const [messages, setMessages] = useState<MessageWithSender[]>([]);
@@ -47,15 +47,13 @@ export default function ChatRoomScreen() {
   const flatListRef = useRef<FlatList>(null);
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const myId = user?.id;
+  const myId = business?.id;
 
-  // Fetch initial messages
   const fetchMessages = useCallback(
     async (pageNum = 1, append = false) => {
       if (!chatId) return;
       try {
         const { data } = await chatsApi.getMessages(chatId, { page: pageNum, limit: 50 });
-        // Messages come newest-first from API; we reverse for display
         const sorted = [...data.messages].reverse();
         if (append) {
           setMessages((prev) => [...sorted, ...prev]);
@@ -72,10 +70,8 @@ export default function ChatRoomScreen() {
     [chatId],
   );
 
-  // Setup socket connection and event listeners
   useEffect(() => {
     if (!chatId) return;
-
     let mounted = true;
 
     const setup = async () => {
@@ -83,7 +79,6 @@ export default function ChatRoomScreen() {
       if (!mounted) return;
       setLoading(false);
 
-      // Mark as read
       chatsApi.markRead(chatId).catch(() => {});
 
       try {
@@ -107,7 +102,7 @@ export default function ChatRoomScreen() {
 
         socket.on('stop_typing', (data: { chatId: string; userId: string }) => {
           if (data.chatId === chatId && mounted) {
-            setTypingUsers((prev) => prev.filter((id) => id !== data.userId));
+            setTypingUsers((prev) => prev.filter((uid) => uid !== data.userId));
           }
         });
       } catch {
@@ -139,15 +134,13 @@ export default function ChatRoomScreen() {
 
     try {
       const { data } = await chatsApi.sendMessage(chatId, content);
-      // Socket will deliver the message in real-time;
-      // add it immediately for local UX if socket is slow
       setMessages((prev) => {
         if (prev.find((m) => m.id === data.id)) return prev;
         return [...prev, data];
       });
     } catch (err) {
       Alert.alert('Send failed', extractErrorMessage(err));
-      setInputText(content); // Restore so user can retry
+      setInputText(content);
     }
     setSending(false);
   };
@@ -171,9 +164,6 @@ export default function ChatRoomScreen() {
   }, [loadingMore, page, totalPages, fetchMessages]);
 
   const isMyMessage = (msg: MessageWithSender) => {
-    if (accountType === 'user') {
-      return msg.senderType === SenderType.USER && msg.senderId === myId;
-    }
     return msg.senderType === SenderType.BUSINESS && msg.senderId === myId;
   };
 
@@ -206,7 +196,6 @@ export default function ChatRoomScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
           <Text style={styles.backText}>‹</Text>
@@ -259,7 +248,6 @@ export default function ChatRoomScreen() {
           />
         )}
 
-        {/* Input bar */}
         <View style={styles.inputBar}>
           <TextInput
             style={styles.input}
@@ -287,10 +275,7 @@ export default function ChatRoomScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.dark,
-  },
+  container: { flex: 1, backgroundColor: Colors.dark },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -299,86 +284,23 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
   },
-  backBtn: {
-    width: 32,
-    alignItems: 'flex-start',
-  },
-  backText: {
-    fontSize: 28,
-    color: Colors.blue,
-    lineHeight: 28,
-  },
-  headerInfo: {
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: Colors.text,
-  },
-  typingText: {
-    fontSize: 12,
-    color: Colors.blue,
-    fontStyle: 'italic',
-  },
-  centered: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  messagesList: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  msgWrapper: {
-    marginBottom: 6,
-    maxWidth: '80%',
-  },
-  msgRight: {
-    alignSelf: 'flex-end',
-    alignItems: 'flex-end',
-  },
-  msgLeft: {
-    alignSelf: 'flex-start',
-    alignItems: 'flex-start',
-  },
-  msgSender: {
-    fontSize: 11,
-    color: Colors.blue,
-    fontWeight: '600',
-    marginBottom: 2,
-    marginLeft: 4,
-  },
-  msgBubble: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 18,
-    maxWidth: '100%',
-  },
-  myBubble: {
-    backgroundColor: Colors.blue,
-    borderBottomRightRadius: 4,
-  },
-  otherBubble: {
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderBottomLeftRadius: 4,
-  },
-  msgText: {
-    fontSize: 15,
-    color: Colors.text,
-    lineHeight: 20,
-  },
-  myMsgText: {
-    color: Colors.textWhite,
-  },
-  msgTime: {
-    fontSize: 10,
-    color: Colors.textMuted,
-    marginTop: 2,
-    marginHorizontal: 4,
-  },
+  backBtn: { width: 32, alignItems: 'flex-start' },
+  backText: { fontSize: 28, color: Colors.blue, lineHeight: 28 },
+  headerInfo: { flex: 1 },
+  headerTitle: { fontSize: 17, fontWeight: '600', color: Colors.text },
+  typingText: { fontSize: 12, color: Colors.blue, fontStyle: 'italic' },
+  centered: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  messagesList: { paddingHorizontal: 12, paddingVertical: 8 },
+  msgWrapper: { marginBottom: 6, maxWidth: '80%' },
+  msgRight: { alignSelf: 'flex-end', alignItems: 'flex-end' },
+  msgLeft: { alignSelf: 'flex-start', alignItems: 'flex-start' },
+  msgSender: { fontSize: 11, color: Colors.blue, fontWeight: '600', marginBottom: 2, marginLeft: 4 },
+  msgBubble: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 18, maxWidth: '100%' },
+  myBubble: { backgroundColor: Colors.blue, borderBottomRightRadius: 4 },
+  otherBubble: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, borderBottomLeftRadius: 4 },
+  msgText: { fontSize: 15, color: Colors.text, lineHeight: 20 },
+  myMsgText: { color: Colors.textWhite },
+  msgTime: { fontSize: 10, color: Colors.textMuted, marginTop: 2, marginHorizontal: 4 },
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -409,11 +331,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  sendBtnActive: {
-    backgroundColor: Colors.blue,
-  },
-  sendText: {
-    fontSize: 18,
-    color: Colors.textWhite,
-  },
+  sendBtnActive: { backgroundColor: Colors.blue },
+  sendText: { fontSize: 18, color: Colors.textWhite },
 });

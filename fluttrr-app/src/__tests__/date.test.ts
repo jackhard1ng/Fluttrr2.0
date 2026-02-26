@@ -1,4 +1,4 @@
-import { formatTime, formatTimeRange } from '../utils/date';
+import { formatTime, formatTimeRange, formatEventMonth, formatEventDay, formatEventDateFull, isEventPast } from '../utils/date';
 
 describe('formatTime', () => {
   it('returns AM/PM formatted strings as-is', () => {
@@ -27,5 +27,40 @@ describe('formatTimeRange', () => {
 
   it('handles AM/PM format inputs', () => {
     expect(formatTimeRange('7:00 PM', '9:00 PM')).toBe('7:00 PM - 9:00 PM');
+  });
+});
+
+describe('formatEventMonth', () => {
+  it('returns 3-letter uppercase month', () => {
+    expect(formatEventMonth('2026-01-15T00:00:00.000Z')).toBe('JAN');
+    expect(formatEventMonth('2026-06-20T00:00:00.000Z')).toBe('JUN');
+    expect(formatEventMonth('2026-12-25T00:00:00.000Z')).toBe('DEC');
+  });
+});
+
+describe('formatEventDay', () => {
+  it('returns day of month as string', () => {
+    expect(formatEventDay('2026-01-01T00:00:00.000Z')).toBe('1');
+    expect(formatEventDay('2026-03-15T00:00:00.000Z')).toBe('15');
+    expect(formatEventDay('2026-12-31T00:00:00.000Z')).toBe('31');
+  });
+});
+
+describe('formatEventDateFull', () => {
+  it('returns full formatted date', () => {
+    const result = formatEventDateFull('2026-03-15T00:00:00.000Z');
+    expect(result).toContain('March');
+    expect(result).toContain('15');
+    expect(result).toContain('2026');
+  });
+});
+
+describe('isEventPast', () => {
+  it('returns true for past dates', () => {
+    expect(isEventPast('2020-01-01T00:00:00.000Z')).toBe(true);
+  });
+
+  it('returns false for future dates', () => {
+    expect(isEventPast('2030-12-31T23:59:59.000Z')).toBe(false);
   });
 });

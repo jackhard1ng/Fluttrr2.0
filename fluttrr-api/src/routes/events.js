@@ -3,6 +3,7 @@ const rateLimit = require('express-rate-limit');
 const prisma = require('../utils/prisma');
 const { requireUser, requireVerifiedBusiness } = require('../middleware/auth');
 const { createEventSchema, updateEventSchema, validate } = require('../validators/schemas');
+const { notifyEventAttendees, notifyBusiness } = require('../utils/pushNotifications');
 
 const router = express.Router();
 
@@ -361,6 +362,13 @@ router.post('/:id/join', requireUser, async (req, res, next) => {
         displayName: req.user.displayName,
       });
     }
+
+    // Push notification to business owner
+    notifyBusiness(prisma, event.businessId, {
+      title: 'New attendee!',
+      body: `${req.user.displayName} joined ${event.title}`,
+      data: { eventId: event.id, type: 'EVENT_JOINED' },
+    }).catch(() => {});
 
     res.json({ message: 'Joined event', chatId: event.chat?.id });
   } catch (err) {

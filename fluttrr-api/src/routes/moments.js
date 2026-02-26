@@ -3,6 +3,7 @@ const rateLimit = require('express-rate-limit');
 const prisma = require('../utils/prisma');
 const { requireUser, requireAuth } = require('../middleware/auth');
 const { createMomentSchema, validate } = require('../validators/schemas');
+const { notifyUser } = require('../utils/pushNotifications');
 
 const router = express.Router();
 
@@ -183,6 +184,13 @@ router.post('/:id/like', requireUser, async (req, res, next) => {
           data: { momentId: moment.id },
         },
       }).catch(() => {});
+
+      // Push notification
+      notifyUser(prisma, moment.userId, {
+        title: 'New like',
+        body: `${req.user.displayName} liked your moment`,
+        data: { momentId: moment.id, type: 'MOMENT_LIKE' },
+      }).catch(() => {});
     }
 
     const likeCount = await prisma.momentLike.count({ where: { momentId: moment.id } });
@@ -251,6 +259,13 @@ router.post('/:id/comments', requireUser, async (req, res, next) => {
           body: `${req.user.displayName} commented on your moment`,
           data: { momentId: moment.id },
         },
+      }).catch(() => {});
+
+      // Push notification
+      notifyUser(prisma, moment.userId, {
+        title: 'New comment',
+        body: `${req.user.displayName} commented on your moment`,
+        data: { momentId: moment.id, type: 'MOMENT_COMMENT' },
       }).catch(() => {});
     }
 

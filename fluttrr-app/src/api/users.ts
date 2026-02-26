@@ -11,8 +11,8 @@ export const usersApi = {
     return client.put<User>('/api/users/me', data);
   },
 
-  getMyEvents(params?: { page?: number; status?: string }) {
-    return client.get('/api/users/me/events', { params });
+  getMyEvents(params?: { page?: number; type?: 'upcoming' | 'past' }) {
+    return client.get<{ events: any[] }>('/api/users/me/events', { params });
   },
 
   getNotifications(params?: { page?: number }) {

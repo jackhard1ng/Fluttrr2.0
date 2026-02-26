@@ -21,7 +21,9 @@ import type { EventListResponse, FeaturedResponse } from '@/api/events';
 import type { Event } from '@/types/models';
 import { FeaturedEventCard, EventListCard } from '@/components/event/EventCard';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorView } from '@/components/ui/ErrorView';
 import { StatusDot } from '@/components/ui/Badge';
+import { extractErrorMessage } from '@/utils/error';
 
 type EventWithMeta = Event & { attendeeCount: number; spotsLeft: number | null };
 
@@ -36,6 +38,7 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Admin long-press (5-second hold on logo) + passcode
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -69,7 +72,9 @@ export default function HomeScreen() {
     try {
       const { data } = await eventsApi.featured();
       setFeatured(data.events);
-    } catch {}
+    } catch (err) {
+      // Featured is non-critical; silently degrade
+    }
   }, []);
 
   const fetchNearYou = useCallback(async (pageNum = 1, append = false) => {
@@ -82,7 +87,10 @@ export default function HomeScreen() {
       }
       setPage(pageNum);
       setTotalPages(data.totalPages);
-    } catch {}
+      setError(null);
+    } catch (err) {
+      if (!append) setError(extractErrorMessage(err));
+    }
   }, []);
 
   const loadInitial = useCallback(async () => {
@@ -181,11 +189,15 @@ export default function HomeScreen() {
         renderItem={({ item }) => <EventListCard event={item} />}
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={
-          <EmptyState
-            emoji="🎉"
-            title="No events yet"
-            subtitle="Check back soon for events in Kansas City!"
-          />
+          error ? (
+            <ErrorView message={error} onRetry={loadInitial} />
+          ) : (
+            <EmptyState
+              emoji="🎉"
+              title="No events yet"
+              subtitle="Check back soon for events in Kansas City!"
+            />
+          )
         }
         ListFooterComponent={
           loadingMore ? (
