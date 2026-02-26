@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorView } from '@/components/ui/ErrorView';
 import { adminApi, type AdminReportItem } from '@/api/admin';
 import { extractErrorMessage } from '@/utils/error';
 import { formatRelativeTime } from '@/utils/date';
@@ -23,14 +24,18 @@ export default function AdminReportsScreen() {
   const [filter, setFilter] = useState<string>('PENDING');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchReports = useCallback(async () => {
     try {
+      setError(null);
       const params: Record<string, string> = { limit: '50' };
       if (filter !== 'all') params.status = filter;
       const { data } = await adminApi.getReports(params);
       setReports(data.reports);
-    } catch {}
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
   }, [filter]);
 
   useEffect(() => { setLoading(true); fetchReports().finally(() => setLoading(false)); }, [fetchReports]);
@@ -79,7 +84,7 @@ export default function AdminReportsScreen() {
         data={reports}
         keyExtractor={(item) => item.id}
         renderItem={renderReport}
-        ListEmptyComponent={loading ? <ActivityIndicator size="large" color={Colors.blue} style={{ marginTop: 40 }} /> : <EmptyState emoji="🚩" title="No reports" subtitle="Clean slate!" />}
+        ListEmptyComponent={loading ? <ActivityIndicator size="large" color={Colors.blue} style={{ marginTop: 40 }} /> : error ? <ErrorView message={error} onRetry={fetchReports} /> : <EmptyState emoji="🚩" title="No reports" subtitle="Clean slate!" />}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 80 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.blue} />}
       />

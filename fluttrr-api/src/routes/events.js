@@ -277,8 +277,10 @@ router.put('/:id', requireVerifiedBusiness, validate(updateEventSchema), async (
       return res.status(403).json({ error: 'You can only update your own events' });
     }
 
-    const updateData = { ...req.body };
-    if (updateData.date) updateData.date = new Date(updateData.date);
+    // Whitelist safe fields to prevent businessId/status manipulation
+    const { title, description, category, startTime, endTime, date, maxSpots, area, color, emoji, recurring } = req.body;
+    const updateData = { title, description, category, startTime, endTime, maxSpots, area, color, emoji, recurring };
+    if (date) updateData.date = new Date(date);
 
     const updated = await prisma.event.update({
       where: { id: req.params.id },

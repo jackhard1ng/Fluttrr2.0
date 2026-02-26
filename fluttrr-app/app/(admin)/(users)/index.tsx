@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorView } from '@/components/ui/ErrorView';
 import { adminApi, type AdminUserItem } from '@/api/admin';
 import { extractErrorMessage } from '@/utils/error';
 
@@ -14,9 +15,16 @@ export default function AdminUsersScreen() {
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchUsers = useCallback(async () => {
-    try { const { data } = await adminApi.getUsers({ limit: 50 }); setUsers(data.users); } catch {}
+    try {
+      setError(null);
+      const { data } = await adminApi.getUsers({ limit: 50 });
+      setUsers(data.users);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
   }, []);
 
   useEffect(() => { fetchUsers().finally(() => setLoading(false)); }, [fetchUsers]);
@@ -72,7 +80,7 @@ export default function AdminUsersScreen() {
         data={users}
         keyExtractor={(item) => item.id}
         renderItem={renderUser}
-        ListEmptyComponent={loading ? <ActivityIndicator size="large" color={Colors.blue} style={{ marginTop: 40 }} /> : <EmptyState emoji="👥" title="No users" />}
+        ListEmptyComponent={loading ? <ActivityIndicator size="large" color={Colors.blue} style={{ marginTop: 40 }} /> : error ? <ErrorView message={error} onRetry={fetchUsers} /> : <EmptyState emoji="👥" title="No users" />}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 80, paddingTop: 10 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.blue} />}
       />

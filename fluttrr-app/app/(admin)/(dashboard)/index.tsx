@@ -4,17 +4,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
+import { ErrorView } from '@/components/ui/ErrorView';
 import { useAuthStore } from '@/stores/auth.store';
 import { adminApi, type AdminStatsResponse } from '@/api/admin';
+import { extractErrorMessage } from '@/utils/error';
 
 export default function AdminDashboard() {
   const { user, logout } = useAuthStore();
   const [stats, setStats] = useState<AdminStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchStats = useCallback(async () => {
-    try { const { data } = await adminApi.getStats(); setStats(data); } catch {}
+    try {
+      setError(null);
+      const { data } = await adminApi.getStats();
+      setStats(data);
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
   }, []);
 
   useEffect(() => { fetchStats().finally(() => setLoading(false)); }, [fetchStats]);
@@ -32,6 +41,8 @@ export default function AdminDashboard() {
       }>
         {loading ? (
           <ActivityIndicator size="large" color={Colors.blue} style={{ marginTop: 40 }} />
+        ) : error ? (
+          <ErrorView message={error} onRetry={fetchStats} />
         ) : stats ? (
           <View style={s.grid}>
             <StatCard emoji="👥" label="Total Users" value={stats.totalUsers} />

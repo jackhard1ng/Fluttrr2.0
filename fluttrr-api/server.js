@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 const http = require('http');
 const { Server } = require('socket.io');
 const { verifyToken } = require('./src/utils/jwt');
+const prisma = require('./src/utils/prisma');
 
 const path = require('path');
 
@@ -92,8 +93,20 @@ io.use((socket, next) => {
 io.on('connection', (socket) => {
   console.log(`Socket connected: ${socket.userId} (${socket.userType})`);
 
-  socket.on('join_chat', (chatId) => {
-    socket.join(`chat:${chatId}`);
+  socket.on('join_chat', async (chatId) => {
+    try {
+      // Verify the user is actually a member of this chat
+      const memberFilter = socket.userType === 'user'
+        ? { userId: socket.userId }
+        : { businessId: socket.userId };
+      const membership = await prisma.chatMember.findFirst({
+        where: { chatId, ...memberFilter },
+      });
+      if (!membership) return; // silently reject
+      socket.join(`chat:${chatId}`);
+    } catch (err) {
+      console.error('join_chat error:', err.message);
+    }
   });
 
   socket.on('leave_chat', (chatId) => {

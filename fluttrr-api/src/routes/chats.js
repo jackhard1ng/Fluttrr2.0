@@ -7,6 +7,15 @@ const { sendPushNotifications } = require('../utils/pushNotifications');
 
 const router = express.Router();
 
+// Basic HTML/script tag sanitization for message content
+function sanitizeContent(str) {
+  if (typeof str !== 'string') return '';
+  return str
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/&(?!lt;|gt;|amp;|quot;|#)/g, '&amp;');
+}
+
 const messageLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 60,
@@ -151,7 +160,7 @@ router.post('/:id/messages', requireAuth, messageLimiter, validate(sendMessageSc
         chatId: req.params.id,
         senderId: getMemberId(req),
         senderType: req.accountType === 'user' ? 'USER' : 'BUSINESS',
-        content: req.body.content,
+        content: sanitizeContent(req.body.content),
       },
     });
 

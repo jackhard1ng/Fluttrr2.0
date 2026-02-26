@@ -39,10 +39,11 @@ router.get('/profile', requireBusiness, async (req, res, next) => {
 
 router.put('/profile', requireBusiness, validate(updateBusinessSchema), async (req, res, next) => {
   try {
-    // TODO: Re-geocode if address changed
+    // Whitelist safe fields to prevent verified/status manipulation
+    const { businessName, description, address, phone, website, logo, fcmToken } = req.body;
     const updated = await prisma.business.update({
       where: { id: req.business.id },
-      data: req.body,
+      data: { businessName, description, address, phone, website, logo, fcmToken },
     });
 
     const { passwordHash, ...safe } = updated;

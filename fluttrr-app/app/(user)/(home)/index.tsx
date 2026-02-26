@@ -15,6 +15,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
+import { Config } from '@/constants/config';
 import { useAuthStore } from '@/stores/auth.store';
 import { eventsApi } from '@/api/events';
 import type { EventListResponse, FeaturedResponse } from '@/api/events';
@@ -58,7 +59,7 @@ export default function HomeScreen() {
   };
 
   const handleAdminPinSubmit = () => {
-    if (adminPin === '2417') {
+    if (adminPin === Config.ADMIN_PIN) {
       setShowAdminPin(false);
       setAdminPin('');
       router.push('/(admin)/(dashboard)');

@@ -30,4 +30,7 @@ export const Config = {
   // App
   APP_NAME: 'Fluttrr',
   CONTACT_EMAIL: 'hello@fluttrr.com',
+
+  // Admin
+  ADMIN_PIN: process.env.EXPO_PUBLIC_ADMIN_PIN || '2417',
 } as const;

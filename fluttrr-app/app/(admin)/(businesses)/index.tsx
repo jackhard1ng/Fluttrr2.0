@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorView } from '@/components/ui/ErrorView';
 import { adminApi, type AdminBusinessItem } from '@/api/admin';
 import { extractErrorMessage } from '@/utils/error';
 
@@ -17,14 +18,18 @@ export default function AdminBusinessesScreen() {
   const [filter, setFilter] = useState<FilterKey>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchBusinesses = useCallback(async () => {
     try {
+      setError(null);
       const params: Record<string, string> = {};
       if (filter !== 'all') params.status = filter;
       const { data } = await adminApi.getBusinesses({ ...params, limit: 50 });
       setBusinesses(data.businesses);
-    } catch {}
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
   }, [filter]);
 
   useEffect(() => { setLoading(true); fetchBusinesses().finally(() => setLoading(false)); }, [fetchBusinesses]);
@@ -84,7 +89,7 @@ export default function AdminBusinessesScreen() {
         data={businesses}
         keyExtractor={(item) => item.id}
         renderItem={renderBiz}
-        ListEmptyComponent={loading ? <ActivityIndicator size="large" color={Colors.blue} style={{ marginTop: 40 }} /> : <EmptyState emoji="🏪" title="No businesses" />}
+        ListEmptyComponent={loading ? <ActivityIndicator size="large" color={Colors.blue} style={{ marginTop: 40 }} /> : error ? <ErrorView message={error} onRetry={fetchBusinesses} /> : <EmptyState emoji="🏪" title="No businesses" />}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 80 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.blue} />}
       />

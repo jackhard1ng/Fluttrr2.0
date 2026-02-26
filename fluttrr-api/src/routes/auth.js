@@ -34,6 +34,19 @@ const otpResendLimiter = rateLimit({
   message: { error: 'Please wait before requesting another code' },
 });
 
+const verifyOtpLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  skipSuccessfulRequests: true,
+  message: { error: 'Too many verification attempts, please try again later' },
+});
+
+const resetPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  message: { error: 'Too many password reset attempts, please try again later' },
+});
+
 // ─── Helpers ─────────────────────────────────────────────
 
 function sanitizeUser(user) {
@@ -236,7 +249,7 @@ router.post('/login/business', loginLimiter, validate(loginSchema), async (req, 
 
 // ─── POST /verify-otp ───────────────────────────────────
 
-router.post('/verify-otp', validate(verifyOtpSchema), async (req, res, next) => {
+router.post('/verify-otp', verifyOtpLimiter, validate(verifyOtpSchema), async (req, res, next) => {
   try {
     const { email, code } = req.body;
 
@@ -403,15 +416,18 @@ router.post('/forgot-password', otpResendLimiter, async (req, res, next) => {
 
 // ─── POST /reset-password ───────────────────────────────
 
-router.post('/reset-password', async (req, res, next) => {
+router.post('/reset-password', resetPasswordLimiter, async (req, res, next) => {
   try {
     const { email, code, newPassword } = req.body;
     if (!email || !code || !newPassword) {
       return res.status(400).json({ error: 'Email, code, and new password are required' });
     }
 
-    if (newPassword.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (newPassword.length < 8 || newPassword.length > 128) {
+      return res.status(400).json({ error: 'Password must be 8-128 characters' });
+    }
+    if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
+      return res.status(400).json({ error: 'Password must contain both letters and numbers' });
     }
 
     // Validate OTP

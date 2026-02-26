@@ -39,9 +39,11 @@ router.get('/me', requireUser, async (req, res, next) => {
 
 router.put('/me', requireUser, validate(updateUserSchema), async (req, res, next) => {
   try {
+    // Whitelist safe fields to prevent role escalation
+    const { displayName, bio, profilePhoto, city, fcmToken } = req.body;
     const updated = await prisma.user.update({
       where: { id: req.user.id },
-      data: req.body,
+      data: { displayName, bio, profilePhoto, city, fcmToken },
     });
 
     const { passwordHash, ...safe } = updated;

@@ -1,8 +1,28 @@
-import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import { Tabs, useRouter } from 'expo-router';
+import { Text, View, ActivityIndicator } from 'react-native';
+import { useEffect } from 'react';
 import { Colors } from '@/constants/colors';
+import { useAuthStore } from '@/stores/auth.store';
 
 export default function AdminTabLayout() {
+  const router = useRouter();
+  const isAdmin = useAuthStore((s) => s.isAdmin);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isAdmin) {
+      router.replace('/');
+    }
+  }, [isAuthenticated, isAdmin, router]);
+
+  if (!isAdmin) {
+    return (
+      <View style={{ flex: 1, backgroundColor: Colors.dark, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={Colors.error} />
+      </View>
+    );
+  }
+
   return (
     <Tabs
       screenOptions={{
