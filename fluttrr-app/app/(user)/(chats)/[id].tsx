@@ -1,0 +1,403 @@
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+} from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Colors } from '@/constants/colors';
+import { chatsApi, type MessageWithSender } from '@/api/chats';
+import { useAuthStore } from '@/stores/auth.store';
+import {
+  connectSocket,
+  joinChatRoom,
+  leaveChatRoom,
+  emitTyping,
+  emitStopTyping,
+  getSocket,
+} from '@/services/socket';
+import { formatMessageTime } from '@/utils/date';
+import { extractErrorMessage } from '@/utils/error';
+import { SenderType } from '@/types/enums';
+
+export default function ChatRoomScreen() {
+  const { id, title } = useLocalSearchParams<{ id: string; title?: string }>();
+  const router = useRouter();
+  const { user, accountType } = useAuthStore();
+  const chatId = id || '';
+
+  const [messages, setMessages] = useState<MessageWithSender[]>([]);
+  const [inputText, setInputText] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [sending, setSending] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+
+  const flatListRef = useRef<FlatList>(null);
+  const typingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const myId = user?.id;
+
+  // Fetch initial messages
+  const fetchMessages = useCallback(
+    async (pageNum = 1, append = false) => {
+      if (!chatId) return;
+      try {
+        const { data } = await chatsApi.getMessages(chatId, { page: pageNum, limit: 50 });
+        // Messages come newest-first from API; we reverse for display
+        const sorted = [...data.messages].reverse();
+        if (append) {
+          setMessages((prev) => [...sorted, ...prev]);
+        } else {
+          setMessages(sorted);
+        }
+        setPage(pageNum);
+        setTotalPages(data.totalPages);
+      } catch {}
+    },
+    [chatId],
+  );
+
+  // Setup socket connection and event listeners
+  useEffect(() => {
+    if (!chatId) return;
+
+    let mounted = true;
+
+    const setup = async () => {
+      await fetchMessages(1);
+      if (!mounted) return;
+      setLoading(false);
+
+      // Mark as read
+      chatsApi.markRead(chatId).catch(() => {});
+
+      try {
+        const socket = await connectSocket();
+        joinChatRoom(chatId);
+
+        socket.on('new_message', (message: MessageWithSender) => {
+          if (message.chatId === chatId && mounted) {
+            setMessages((prev) => [...prev, message]);
+            chatsApi.markRead(chatId).catch(() => {});
+          }
+        });
+
+        socket.on('typing', (data: { chatId: string; userId: string }) => {
+          if (data.chatId === chatId && data.userId !== myId && mounted) {
+            setTypingUsers((prev) =>
+              prev.includes(data.userId) ? prev : [...prev, data.userId],
+            );
+          }
+        });
+
+        socket.on('stop_typing', (data: { chatId: string; userId: string }) => {
+          if (data.chatId === chatId && mounted) {
+            setTypingUsers((prev) => prev.filter((id) => id !== data.userId));
+          }
+        });
+      } catch {
+        // Socket connection failed — messages still work via REST
+      }
+    };
+
+    setup();
+
+    return () => {
+      mounted = false;
+      leaveChatRoom(chatId);
+      const socket = getSocket();
+      if (socket) {
+        socket.off('new_message');
+        socket.off('typing');
+        socket.off('stop_typing');
+      }
+    };
+  }, [chatId, fetchMessages, myId]);
+
+  const handleSend = async () => {
+    const content = inputText.trim();
+    if (!content || sending || !chatId) return;
+
+    setSending(true);
+    setInputText('');
+    emitStopTyping(chatId);
+
+    try {
+      const { data } = await chatsApi.sendMessage(chatId, content);
+      // Socket will deliver the message in real-time;
+      // add it immediately for local UX if socket is slow
+      setMessages((prev) => {
+        if (prev.find((m) => m.id === data.id)) return prev;
+        return [...prev, data];
+      });
+    } catch {}
+    setSending(false);
+  };
+
+  const handleTyping = (text: string) => {
+    setInputText(text);
+    if (text.trim()) {
+      emitTyping(chatId);
+      if (typingTimeout.current) clearTimeout(typingTimeout.current);
+      typingTimeout.current = setTimeout(() => emitStopTyping(chatId), 2000);
+    } else {
+      emitStopTyping(chatId);
+    }
+  };
+
+  const onEndReached = useCallback(async () => {
+    if (loadingMore || page >= totalPages) return;
+    setLoadingMore(true);
+    await fetchMessages(page + 1, true);
+    setLoadingMore(false);
+  }, [loadingMore, page, totalPages, fetchMessages]);
+
+  const isMyMessage = (msg: MessageWithSender) => {
+    if (accountType === 'user') {
+      return msg.senderType === SenderType.USER && msg.senderId === myId;
+    }
+    return msg.senderType === SenderType.BUSINESS && msg.senderId === myId;
+  };
+
+  const getSenderName = (msg: MessageWithSender): string => {
+    if (msg.sender?.displayName) return msg.sender.displayName;
+    if (msg.sender?.businessName) return msg.sender.businessName;
+    if (msg.sender?.username) return `@${msg.sender.username}`;
+    return 'User';
+  };
+
+  const renderMessage = ({ item, index }: { item: MessageWithSender; index: number }) => {
+    const mine = isMyMessage(item);
+    const prevMsg = index > 0 ? messages[index - 1] : null;
+    const showSender = !mine && (!prevMsg || prevMsg.senderId !== item.senderId);
+
+    return (
+      <View style={[styles.msgWrapper, mine ? styles.msgRight : styles.msgLeft]}>
+        {showSender && (
+          <Text style={styles.msgSender}>{getSenderName(item)}</Text>
+        )}
+        <View style={[styles.msgBubble, mine ? styles.myBubble : styles.otherBubble]}>
+          <Text style={[styles.msgText, mine && styles.myMsgText]}>
+            {item.content}
+          </Text>
+        </View>
+        <Text style={styles.msgTime}>{formatMessageTime(item.createdAt)}</Text>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+          <Text style={styles.backText}>‹</Text>
+        </TouchableOpacity>
+        <View style={styles.headerInfo}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {title || 'Chat'}
+          </Text>
+          {typingUsers.length > 0 && (
+            <Text style={styles.typingText}>typing...</Text>
+          )}
+        </View>
+      </View>
+
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1 }}
+        keyboardVerticalOffset={0}
+      >
+        {loading ? (
+          <View style={styles.centered}>
+            <ActivityIndicator size="large" color={Colors.blue} />
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            renderItem={renderMessage}
+            contentContainerStyle={styles.messagesList}
+            onContentSizeChange={() =>
+              flatListRef.current?.scrollToEnd({ animated: false })
+            }
+            ListHeaderComponent={
+              loadingMore ? (
+                <ActivityIndicator size="small" color={Colors.blue} style={{ marginVertical: 10 }} />
+              ) : null
+            }
+            inverted={false}
+            onStartReached={onEndReached}
+            onStartReachedThreshold={0.2}
+          />
+        )}
+
+        {/* Input bar */}
+        <View style={styles.inputBar}>
+          <TextInput
+            style={styles.input}
+            placeholder="Message..."
+            placeholderTextColor={Colors.textSecondary + '88'}
+            value={inputText}
+            onChangeText={handleTyping}
+            multiline
+            maxLength={5000}
+          />
+          <TouchableOpacity
+            onPress={handleSend}
+            disabled={!inputText.trim() || sending}
+            style={[
+              styles.sendBtn,
+              inputText.trim() ? styles.sendBtnActive : null,
+            ]}
+          >
+            <Text style={styles.sendText}>➤</Text>
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.dark,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  backBtn: {
+    width: 32,
+    alignItems: 'flex-start',
+  },
+  backText: {
+    fontSize: 28,
+    color: Colors.blue,
+    lineHeight: 28,
+  },
+  headerInfo: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  typingText: {
+    fontSize: 12,
+    color: Colors.blue,
+    fontStyle: 'italic',
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  messagesList: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  msgWrapper: {
+    marginBottom: 6,
+    maxWidth: '80%',
+  },
+  msgRight: {
+    alignSelf: 'flex-end',
+    alignItems: 'flex-end',
+  },
+  msgLeft: {
+    alignSelf: 'flex-start',
+    alignItems: 'flex-start',
+  },
+  msgSender: {
+    fontSize: 11,
+    color: Colors.blue,
+    fontWeight: '600',
+    marginBottom: 2,
+    marginLeft: 4,
+  },
+  msgBubble: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    maxWidth: '100%',
+  },
+  myBubble: {
+    backgroundColor: Colors.blue,
+    borderBottomRightRadius: 4,
+  },
+  otherBubble: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderBottomLeftRadius: 4,
+  },
+  msgText: {
+    fontSize: 15,
+    color: Colors.text,
+    lineHeight: 20,
+  },
+  myMsgText: {
+    color: Colors.textWhite,
+  },
+  msgTime: {
+    fontSize: 10,
+    color: Colors.textMuted,
+    marginTop: 2,
+    marginHorizontal: 4,
+  },
+  inputBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+    gap: 8,
+  },
+  input: {
+    flex: 1,
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: Colors.text,
+    maxHeight: 100,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  sendBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendBtnActive: {
+    backgroundColor: Colors.blue,
+  },
+  sendText: {
+    fontSize: 18,
+    color: Colors.textWhite,
+  },
+});
