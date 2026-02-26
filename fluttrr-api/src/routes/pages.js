@@ -100,6 +100,7 @@ router.get('/events', async (req, res, next) => {
       ogDescription: `Discover ${total} upcoming events in Kansas City. Join the community and meet new people!`,
       ogType: 'website',
       ogUrl: `${baseUrl}/events`,
+      ogImage: `${baseUrl}/og-image.png`,
       deepLinkPath: 'events',
       jsonLd: null,
       events: eventsFormatted,
@@ -156,6 +157,7 @@ router.get('/event/:id', async (req, res, next) => {
       ogDescription: `${catLabel} event on ${dateStr} at ${timeStr}. ${eventFormatted.attendeeCount} people going. ${event.area ? `Located in ${event.area}, Kansas City.` : 'Kansas City.'}`,
       ogType: 'article',
       ogUrl: `${baseUrl}/event/${event.id}`,
+      ogImage: `${baseUrl}/og-image.png`,
       deepLinkPath: `event/${event.id}`,
       jsonLd: {
         '@context': 'https://schema.org',
@@ -223,6 +225,7 @@ router.get('/privacy', (req, res) => {
     ogTitle: 'Privacy Policy - Fluttrr',
     ogDescription: 'Learn how Fluttrr handles your personal information.',
     ogUrl: `${baseUrl}/privacy`,
+    ogImage: `${baseUrl}/og-image.png`,
     ...legalPageDefaults,
   });
 });
@@ -235,6 +238,7 @@ router.get('/terms', (req, res) => {
     ogTitle: 'Terms of Service - Fluttrr',
     ogDescription: 'Terms and conditions for using Fluttrr.',
     ogUrl: `${baseUrl}/terms`,
+    ogImage: `${baseUrl}/og-image.png`,
     ...legalPageDefaults,
   });
 });
@@ -247,6 +251,7 @@ router.get('/support', (req, res) => {
     ogTitle: 'Support - Fluttrr',
     ogDescription: 'Need help with Fluttrr? Contact our support team.',
     ogUrl: `${baseUrl}/support`,
+    ogImage: `${baseUrl}/og-image.png`,
     ...legalPageDefaults,
   });
 });
@@ -363,6 +368,7 @@ router.get('/', async (req, res, next) => {
       ogDescription: 'Discover local events, meet new people, and explore Kansas City together.',
       ogType: 'website',
       ogUrl: baseUrl,
+      ogImage: `${baseUrl}/og-image.png`,
       deepLinkPath: '',
       jsonLd: {
         '@context': 'https://schema.org',

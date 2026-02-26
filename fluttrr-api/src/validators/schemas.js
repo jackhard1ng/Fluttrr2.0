@@ -88,7 +88,17 @@ const updateBusinessSchema = z.object({
   phone: z.string().max(20).optional(),
   website: z.string().url('Invalid URL').or(z.literal('')).optional(),
   logo: z.string().optional(),
+  city: z.string().max(100).optional(),
   fcmToken: z.string().optional(),
+});
+
+const joinEventSchema = z.object({
+  guestCount: z.number().int().min(0).max(10).optional().default(0),
+});
+
+const updateReviewSchema = z.object({
+  rating: z.number().int().min(1).max(5).optional(),
+  content: z.string().max(2000).optional(),
 });
 
 // ─── Chat / Message Schemas ──────────────────────────────
@@ -159,7 +169,9 @@ module.exports = {
   updateUserSchema,
   updateBusinessSchema,
   sendMessageSchema,
+  joinEventSchema,
   createReviewSchema,
+  updateReviewSchema,
   createReportSchema,
   createMomentSchema,
   adminMessageSchema,

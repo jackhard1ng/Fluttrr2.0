@@ -2,7 +2,7 @@ const express = require('express');
 const rateLimit = require('express-rate-limit');
 const prisma = require('../utils/prisma');
 const { requireUser, requireVerifiedBusiness } = require('../middleware/auth');
-const { createEventSchema, updateEventSchema, validate } = require('../validators/schemas');
+const { createEventSchema, updateEventSchema, joinEventSchema, validate } = require('../validators/schemas');
 const { notifyEventAttendees, notifyBusiness } = require('../utils/pushNotifications');
 const { enforceEventLimit } = require('../middleware/requireSubscription');
 
@@ -253,6 +253,7 @@ router.get('/:id', async (req, res, next) => {
     const totalPeople = event.attendees.reduce((sum, a) => sum + 1 + (a.guestCount || 0), 0);
     res.json({
       ...event,
+      attendees: event.attendees.map((a) => ({ ...a.user, joinedAt: a.joinedAt })),
       attendeeCount: totalPeople,
       spotsLeft: event.maxSpots ? Math.max(0, event.maxSpots - totalPeople) : null,
       chatId: event.chat?.id || null,
@@ -406,9 +407,9 @@ router.delete('/:id', requireVerifiedBusiness, async (req, res, next) => {
 
 // ─── POST /:id/join (requireUser) ───────────────────────
 
-router.post('/:id/join', requireUser, async (req, res, next) => {
+router.post('/:id/join', requireUser, validate(joinEventSchema), async (req, res, next) => {
   try {
-    const guestCount = Math.max(0, Math.min(10, parseInt(req.body.guestCount) || 0));
+    const guestCount = req.body.guestCount || 0;
 
     const event = await prisma.event.findUnique({
       where: { id: req.params.id },

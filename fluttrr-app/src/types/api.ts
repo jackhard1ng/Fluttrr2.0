@@ -127,6 +127,7 @@ export interface UpdateBusinessData {
   phone?: string;
   website?: string;
   logo?: string;
+  city?: string;
   fcmToken?: string;
 }
 

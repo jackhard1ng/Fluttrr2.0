@@ -1,7 +1,7 @@
 const express = require('express');
 const prisma = require('../utils/prisma');
 const { requireBusiness } = require('../middleware/auth');
-const { updateBusinessSchema, createReviewSchema, validate } = require('../validators/schemas');
+const { updateBusinessSchema, createReviewSchema, updateReviewSchema, validate } = require('../validators/schemas');
 const { requireUser } = require('../middleware/auth');
 const { geocodeAddress } = require('../utils/geocode');
 
@@ -41,17 +41,19 @@ router.get('/profile', requireBusiness, async (req, res, next) => {
 router.put('/profile', requireBusiness, validate(updateBusinessSchema), async (req, res, next) => {
   try {
     // Whitelist safe fields to prevent verified/status manipulation
-    const { businessName, description, address, phone, website, logo, fcmToken } = req.body;
-    const updateData = { businessName, description, address, phone, website, logo, fcmToken };
+    const { businessName, description, address, phone, website, logo, city, fcmToken } = req.body;
+    const updateData = { businessName, description, address, phone, website, logo, city, fcmToken };
 
-    // Re-geocode if address changed
-    if (address) {
+    // Re-geocode if address or city changed
+    if (address || city) {
       const current = await prisma.business.findUnique({
         where: { id: req.business.id },
         select: { address: true, city: true },
       });
-      if (current && address !== current.address) {
-        const coords = await geocodeAddress(address, current.city);
+      const newAddress = address || current?.address;
+      const newCity = city || current?.city;
+      if (current && (address !== current.address || city !== current.city)) {
+        const coords = await geocodeAddress(newAddress, newCity);
         if (coords) {
           updateData.lat = coords.lat;
           updateData.lng = coords.lng;
@@ -366,7 +368,7 @@ router.post('/:id/reviews', requireUser, validate(createReviewSchema), async (re
 
 // ─── PUT /:id/reviews (requireUser) ─────────────────────
 
-router.put('/:id/reviews', requireUser, async (req, res, next) => {
+router.put('/:id/reviews', requireUser, validate(updateReviewSchema), async (req, res, next) => {
   try {
     const review = await prisma.review.findUnique({
       where: { businessId_userId: { businessId: req.params.id, userId: req.user.id } },
