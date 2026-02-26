@@ -1,0 +1,69 @@
+{
+  "expo": {
+    "name": "Fluttrr",
+    "slug": "fluttrr-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "scheme": "fluttrr",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A0E17"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.fluttrr.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Fluttrr uses your location to show nearby events.",
+        "NSCameraUsageDescription": "Fluttrr needs camera access to take profile photos.",
+        "NSPhotoLibraryUsageDescription": "Fluttrr needs photo library access to set your profile photo."
+      }
+    },
+    "android": {
+      "package": "com.fluttrr.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0A0E17",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-image",
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Fluttrr uses your location to show nearby events."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Fluttrr needs photo library access to set your profile photo.",
+          "cameraPermission": "Fluttrr needs camera access to take profile photos."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1E90FF"
+        }
+      ]
+    ]
+  }
+}
