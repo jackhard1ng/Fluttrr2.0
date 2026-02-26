@@ -146,6 +146,7 @@ app.use('/api/chats', require('./src/routes/chats'));
 app.use('/api/admin', require('./src/routes/admin'));
 app.use('/api/moments', require('./src/routes/moments'));
 app.use('/api/uploads', require('./src/routes/uploads'));
+app.use('/api/stripe', require('./src/routes/stripe'));
 app.use('/api/web', require('./src/routes/web'));
 
 // Serve uploaded files and public directory statically

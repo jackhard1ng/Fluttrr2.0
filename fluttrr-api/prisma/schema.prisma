@@ -151,9 +151,11 @@ model Business {
   photos           String[]       @default([])
   verified         Boolean        @default(false)
   status           BusinessStatus @default(PENDING)
-  stripeCustomerId String?
-  stripeSubId      String?
-  fcmToken         String?
+  stripeCustomerId   String?
+  stripeSubId        String?
+  subscriptionTier   String         @default("FREE")
+  subscriptionEndsAt DateTime?
+  fcmToken           String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 

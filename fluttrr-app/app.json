@@ -50,6 +50,19 @@
         }
       ]
     },
+    "owner": "fluttrr",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/YOUR_EAS_PROJECT_ID",
+      "fallbackToCacheTimeout": 0
+    },
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"

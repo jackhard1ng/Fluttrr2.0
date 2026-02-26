@@ -12,6 +12,7 @@ const {
   validate,
 } = require('../validators/schemas');
 const { sendOtpEmail, sendPasswordResetEmail } = require('../utils/email');
+const { geocodeAddress } = require('../utils/geocode');
 
 const router = express.Router();
 
@@ -132,6 +133,9 @@ router.post('/register/business', registerLimiter, validate(registerBusinessSche
 
     const passwordHash = await hashPassword(password);
 
+    // Geocode address in background (don't block registration)
+    const coords = await geocodeAddress(address, city || 'Kansas City');
+
     const business = await prisma.business.create({
       data: {
         email,
@@ -142,7 +146,8 @@ router.post('/register/business', registerLimiter, validate(registerBusinessSche
         phone,
         website,
         city: city || 'Kansas City',
-        // TODO: Geocode address to get lat/lng
+        lat: coords?.lat,
+        lng: coords?.lng,
       },
     });
 

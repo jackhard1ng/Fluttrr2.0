@@ -3,6 +3,7 @@ const prisma = require('../utils/prisma');
 const { requireBusiness } = require('../middleware/auth');
 const { updateBusinessSchema, createReviewSchema, validate } = require('../validators/schemas');
 const { requireUser } = require('../middleware/auth');
+const { geocodeAddress } = require('../utils/geocode');
 
 const router = express.Router();
 
@@ -41,9 +42,26 @@ router.put('/profile', requireBusiness, validate(updateBusinessSchema), async (r
   try {
     // Whitelist safe fields to prevent verified/status manipulation
     const { businessName, description, address, phone, website, logo, fcmToken } = req.body;
+    const updateData = { businessName, description, address, phone, website, logo, fcmToken };
+
+    // Re-geocode if address changed
+    if (address) {
+      const current = await prisma.business.findUnique({
+        where: { id: req.business.id },
+        select: { address: true, city: true },
+      });
+      if (current && address !== current.address) {
+        const coords = await geocodeAddress(address, current.city);
+        if (coords) {
+          updateData.lat = coords.lat;
+          updateData.lng = coords.lng;
+        }
+      }
+    }
+
     const updated = await prisma.business.update({
       where: { id: req.business.id },
-      data: { businessName, description, address, phone, website, logo, fcmToken },
+      data: updateData,
     });
 
     const { passwordHash, ...safe } = updated;

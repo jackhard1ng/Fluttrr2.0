@@ -4,8 +4,19 @@ const prisma = require('../utils/prisma');
 const { requireUser, requireVerifiedBusiness } = require('../middleware/auth');
 const { createEventSchema, updateEventSchema, validate } = require('../validators/schemas');
 const { notifyEventAttendees, notifyBusiness } = require('../utils/pushNotifications');
+const { enforceEventLimit } = require('../middleware/requireSubscription');
 
 const router = express.Router();
+
+// Haversine distance in miles
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 3959; // Earth radius in miles
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 const eventCreateLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
@@ -22,6 +33,9 @@ router.get('/', async (req, res, next) => {
       date,
       area,
       search,
+      lat,
+      lng,
+      radius = 25,
       page = 1,
       limit = 20,
       sort = 'date',
@@ -72,21 +86,37 @@ router.get('/', async (req, res, next) => {
       prisma.event.count({ where }),
     ]);
 
-    const eventsWithSpots = events.map((event) => {
+    let eventsWithSpots = events.map((event) => {
       const attendeeCount = event._count.attendees;
-      return {
+      const result = {
         ...event,
         attendeeCount,
         spotsLeft: event.maxSpots ? event.maxSpots - attendeeCount : null,
         _count: undefined,
       };
+
+      // Calculate distance if user location provided
+      if (lat && lng && event.lat && event.lng) {
+        result.distance = haversine(parseFloat(lat), parseFloat(lng), event.lat, event.lng);
+      }
+
+      return result;
     });
+
+    // Filter by radius if location provided
+    if (lat && lng) {
+      const maxDist = parseFloat(radius);
+      eventsWithSpots = eventsWithSpots.filter((e) => !e.distance || e.distance <= maxDist);
+      if (sort === 'distance' || sort === 'date') {
+        eventsWithSpots.sort((a, b) => (a.distance || 999) - (b.distance || 999));
+      }
+    }
 
     res.json({
       events: eventsWithSpots,
-      total,
+      total: lat && lng ? eventsWithSpots.length : total,
       page: pageNum,
-      totalPages: Math.ceil(total / limitNum),
+      totalPages: lat && lng ? 1 : Math.ceil(total / limitNum),
     });
   } catch (err) {
     next(err);
@@ -223,7 +253,7 @@ router.get('/:id', async (req, res, next) => {
 
 // ─── POST / (requireVerifiedBusiness) ────────────────────
 
-router.post('/', requireVerifiedBusiness, eventCreateLimiter, validate(createEventSchema), async (req, res, next) => {
+router.post('/', requireVerifiedBusiness, enforceEventLimit, eventCreateLimiter, validate(createEventSchema), async (req, res, next) => {
   try {
     const { title, description, category, startTime, endTime, date, maxSpots, area, color, emoji, recurring, recurringDay } = req.body;
 

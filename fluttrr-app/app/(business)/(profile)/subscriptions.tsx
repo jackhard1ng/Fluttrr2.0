@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   Alert,
+  Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
@@ -12,100 +14,147 @@ import { Layout } from '@/constants/layout';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { stripeApi } from '@/api/business';
 
-interface PlanFeature {
-  label: string;
-}
-
-interface Plan {
+interface PlanConfig {
   name: string;
+  key: 'FREE' | 'GROWTH' | 'PRO';
   price: string;
   period: string;
-  features: PlanFeature[];
-  current?: boolean;
+  features: string[];
 }
 
-const PLANS: Plan[] = [
+const PLANS: PlanConfig[] = [
   {
     name: 'Free',
+    key: 'FREE',
     price: '$0',
     period: '/mo',
-    features: [
-      { label: '5 events/mo' },
-      { label: 'Basic analytics' },
-    ],
-    current: true,
+    features: ['5 events/mo', 'Basic analytics'],
   },
   {
     name: 'Growth',
+    key: 'GROWTH',
     price: '$29',
     period: '/mo',
-    features: [
-      { label: 'Unlimited events' },
-      { label: 'Full analytics' },
-      { label: 'Priority support' },
-    ],
+    features: ['Unlimited events', 'Full analytics', 'Priority support'],
   },
   {
     name: 'Pro',
+    key: 'PRO',
     price: '$49',
     period: '/mo',
-    features: [
-      { label: 'Everything in Growth' },
-      { label: 'Promoted events' },
-      { label: 'Dedicated support' },
-    ],
+    features: ['Everything in Growth', 'Promoted events', 'Dedicated support'],
   },
 ];
 
 export default function BizSubsScreen() {
-  const handleUpgrade = (plan: Plan) => {
-    Alert.alert(
-      'Coming Soon',
-      `${plan.name} plan upgrades will be available soon! We'll notify you when billing is ready.`,
-    );
+  const [currentTier, setCurrentTier] = useState('FREE');
+  const [hasSubscription, setHasSubscription] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [upgrading, setUpgrading] = useState<string | null>(null);
+
+  useEffect(() => {
+    stripeApi.status()
+      .then(({ data }) => {
+        setCurrentTier(data.tier);
+        setHasSubscription(data.hasSubscription);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleUpgrade = async (plan: PlanConfig) => {
+    if (plan.key === 'FREE') return;
+    setUpgrading(plan.key);
+    try {
+      const { data } = await stripeApi.checkout(plan.key as 'GROWTH' | 'PRO');
+      if (data.url) {
+        await Linking.openURL(data.url);
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || 'Unable to start checkout';
+      Alert.alert('Error', msg);
+    } finally {
+      setUpgrading(null);
+    }
   };
+
+  const handleManage = async () => {
+    try {
+      const { data } = await stripeApi.portal();
+      if (data.url) {
+        await Linking.openURL(data.url);
+      }
+    } catch {
+      Alert.alert('Error', 'Unable to open billing portal');
+    }
+  };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={s.container}>
+        <ScreenHeader title="Subscription" showBack />
+        <View style={s.loadingWrap}>
+          <ActivityIndicator size="large" color={Colors.blue} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={s.container}>
       <ScreenHeader title="Subscription" showBack />
 
       <ScrollView contentContainerStyle={s.scroll}>
-        {PLANS.map((plan) => (
-          <View
-            key={plan.name}
-            style={[s.planCard, plan.current && s.planCardCurrent]}
-          >
-            <View style={s.planHeader}>
-              <View>
-                <Text style={s.planName}>{plan.name}</Text>
-                <Text style={s.planPrice}>
-                  {plan.price}
-                  <Text style={s.planPeriod}>{plan.period}</Text>
-                </Text>
-              </View>
-              {plan.current && <Badge label="Current" color={Colors.success} />}
-            </View>
-
-            <View style={s.features}>
-              {plan.features.map((feat, i) => (
-                <View key={i} style={s.featureRow}>
-                  <Text style={s.featureCheck}>✓</Text>
-                  <Text style={s.featureLabel}>{feat.label}</Text>
+        {PLANS.map((plan) => {
+          const isCurrent = plan.key === currentTier;
+          return (
+            <View
+              key={plan.key}
+              style={[s.planCard, isCurrent && s.planCardCurrent]}
+            >
+              <View style={s.planHeader}>
+                <View>
+                  <Text style={s.planName}>{plan.name}</Text>
+                  <Text style={s.planPrice}>
+                    {plan.price}
+                    <Text style={s.planPeriod}>{plan.period}</Text>
+                  </Text>
                 </View>
-              ))}
-            </View>
+                {isCurrent && <Badge label="Current" color={Colors.success} />}
+              </View>
 
-            {!plan.current && (
-              <Button
-                title="Upgrade"
-                onPress={() => handleUpgrade(plan)}
-                variant="outline"
-                small
-              />
-            )}
-          </View>
-        ))}
+              <View style={s.features}>
+                {plan.features.map((feat, i) => (
+                  <View key={i} style={s.featureRow}>
+                    <Text style={s.featureCheck}>✓</Text>
+                    <Text style={s.featureLabel}>{feat}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {!isCurrent && plan.key !== 'FREE' && (
+                <Button
+                  title={upgrading === plan.key ? 'Loading...' : 'Upgrade'}
+                  onPress={() => handleUpgrade(plan)}
+                  variant="outline"
+                  small
+                  disabled={!!upgrading}
+                />
+              )}
+            </View>
+          );
+        })}
+
+        {hasSubscription && (
+          <Button
+            title="Manage Subscription"
+            onPress={handleManage}
+            variant="outline"
+            style={{ marginTop: 8 }}
+          />
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -114,6 +163,7 @@ export default function BizSubsScreen() {
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dark },
   scroll: { paddingHorizontal: 16, paddingBottom: 40 },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   planCard: {
     backgroundColor: Colors.surface,
     borderRadius: Layout.radius.lg,

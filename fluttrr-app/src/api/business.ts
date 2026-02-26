@@ -96,6 +96,18 @@ export const businessApi = {
   },
 };
 
+export const stripeApi = {
+  checkout(plan: 'GROWTH' | 'PRO') {
+    return client.post<{ url: string; sessionId: string }>('/api/stripe/checkout', { plan });
+  },
+  portal() {
+    return client.post<{ url: string }>('/api/stripe/portal');
+  },
+  status() {
+    return client.get<{ tier: string; endsAt: string | null; hasSubscription: boolean }>('/api/stripe/status');
+  },
+};
+
 export const businessPublicApi = {
   getById(id: string) {
     return client.get<PublicBusinessResponse>(`/api/businesses/${id}`);
