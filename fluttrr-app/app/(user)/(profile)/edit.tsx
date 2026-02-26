@@ -6,10 +6,10 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Switch,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { Colors } from '@/constants/colors';
 import { Layout } from '@/constants/layout';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/Input';
 import { Avatar } from '@/components/ui/Avatar';
 import { useAuthStore } from '@/stores/auth.store';
 import { usersApi } from '@/api/users';
+import { uploadsApi } from '@/api/uploads';
 import { extractErrorMessage } from '@/utils/error';
 import { Config } from '@/constants/config';
 
@@ -27,7 +28,30 @@ export default function EditProfileScreen() {
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [bio, setBio] = useState(user?.bio || '');
   const [city, setCity] = useState(user?.city || '');
+  const [profilePhoto, setProfilePhoto] = useState(user?.profilePhoto || '');
   const [saving, setSaving] = useState(false);
+
+  const handlePickPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    try {
+      const asset = result.assets[0];
+      const { data } = await uploadsApi.upload({
+        uri: asset.uri,
+        name: asset.fileName || 'photo.jpg',
+        type: asset.mimeType || 'image/jpeg',
+      });
+      setProfilePhoto(data.url);
+    } catch (err) {
+      Alert.alert('Upload failed', extractErrorMessage(err));
+    }
+  };
 
   const handleSave = async () => {
     if (!displayName.trim()) {
@@ -40,6 +64,7 @@ export default function EditProfileScreen() {
         displayName: displayName.trim(),
         bio: bio.trim() || undefined,
         city: city.trim() || undefined,
+        profilePhoto: profilePhoto || undefined,
       });
       setUser(data);
       Alert.alert('Saved!', 'Your profile has been updated.', [
@@ -68,15 +93,15 @@ export default function EditProfileScreen() {
 
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
         {/* Profile photo */}
-        <View style={s.photoSection}>
+        <TouchableOpacity style={s.photoSection} onPress={handlePickPhoto} activeOpacity={0.7}>
           <View style={s.avatarWrap}>
-            <Avatar uri={user?.profilePhoto} size={90} ring={Colors.blue} />
+            <Avatar uri={profilePhoto || user?.profilePhoto} size={90} ring={Colors.blue} />
             <View style={s.cameraBadge}>
               <Text style={s.cameraEmoji}>📷</Text>
             </View>
           </View>
           <Text style={s.changePhotoText}>Change Photo</Text>
-        </View>
+        </TouchableOpacity>
 
         {/* Form fields */}
         <View style={s.form}>

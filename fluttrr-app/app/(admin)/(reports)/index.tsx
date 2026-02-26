@@ -29,7 +29,7 @@ export default function AdminReportsScreen() {
   const fetchReports = useCallback(async () => {
     try {
       setError(null);
-      const params: Record<string, string> = { limit: '50' };
+      const params: Record<string, any> = { limit: 50 };
       if (filter !== 'all') params.status = filter;
       const { data } = await adminApi.getReports(params);
       setReports(data.reports);
@@ -47,7 +47,7 @@ export default function AdminReportsScreen() {
   const updateStatus = async (id: string, status: string) => {
     try {
       await adminApi.updateReport(id, status);
-      fetchReports();
+      await fetchReports();
     } catch (e) { Alert.alert('Error', extractErrorMessage(e)); }
   };
 
@@ -60,7 +60,7 @@ export default function AdminReportsScreen() {
       <Text style={styles.reason}>{item.reason}</Text>
       {item.details && <Text style={styles.details}>{item.details}</Text>}
       <Text style={styles.reporter}>
-        Reported by @{item.reportedBy.username} · {formatRelativeTime(item.createdAt)}
+        {item.reportedBy ? `Reported by @${item.reportedBy.username}` : 'Auto-flagged'} · {formatRelativeTime(item.createdAt)}
       </Text>
       {item.status === 'PENDING' && (
         <View style={styles.actions}>

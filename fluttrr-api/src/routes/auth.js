@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const prisma = require('../utils/prisma');
 const { hashPassword, comparePassword } = require('../utils/password');
@@ -11,7 +12,7 @@ const {
   verifyOtpSchema,
   validate,
 } = require('../validators/schemas');
-const { sendOtpEmail, sendPasswordResetEmail } = require('../utils/email');
+const { sendOtpEmail, sendPasswordResetEmail, sendPasswordChangedEmail } = require('../utils/email');
 const { geocodeAddress } = require('../utils/geocode');
 const { checkLockout, recordFailedAttempt, clearAttempts } = require('../middleware/accountLockout');
 
@@ -306,7 +307,9 @@ router.post('/verify-otp', verifyOtpLimiter, validate(verifyOtpSchema), async (r
       return res.status(400).json({ error: 'Too many attempts. Please request a new code.' });
     }
 
-    if (otp.code !== code) {
+    // Constant-time comparison to prevent timing attacks
+    const otpValid = crypto.timingSafeEqual(Buffer.from(otp.code), Buffer.from(code));
+    if (!otpValid) {
       await prisma.otpCode.update({
         where: { id: otp.id },
         data: { attempts: { increment: 1 } },
@@ -480,7 +483,9 @@ router.post('/reset-password', resetPasswordLimiter, async (req, res, next) => {
       return res.status(400).json({ error: 'Too many attempts. Please request a new code.' });
     }
 
-    if (otp.code !== code) {
+    // Constant-time comparison to prevent timing attacks
+    const resetOtpValid = crypto.timingSafeEqual(Buffer.from(otp.code), Buffer.from(code));
+    if (!resetOtpValid) {
       await prisma.otpCode.update({
         where: { id: otp.id },
         data: { attempts: { increment: 1 } },
@@ -510,6 +515,9 @@ router.post('/reset-password', resetPasswordLimiter, async (req, res, next) => {
     } else {
       return res.status(400).json({ error: 'No account associated with this code' });
     }
+
+    // Notify user that their password was changed
+    sendPasswordChangedEmail(email).catch(() => {});
 
     res.json({ message: 'Password reset successfully' });
   } catch (err) {

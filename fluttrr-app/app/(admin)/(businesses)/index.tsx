@@ -44,8 +44,8 @@ export default function AdminBusinessesScreen() {
       else if (action === 'unverify') await adminApi.unverifyBusiness(biz.id);
       else if (action === 'suspend') await adminApi.suspendBusiness(biz.id);
       else if (action === 'reinstate') await adminApi.reinstateBusiness(biz.id);
+      await fetchBusinesses();
       Alert.alert('Done', `Business ${action}d.`);
-      fetchBusinesses();
     } catch (err) { Alert.alert('Error', extractErrorMessage(err)); }
   };
 

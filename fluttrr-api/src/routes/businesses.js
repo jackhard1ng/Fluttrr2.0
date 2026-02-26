@@ -182,14 +182,14 @@ router.get('/analytics', requireBusiness, async (req, res, next) => {
     const bizId = req.business.id;
 
     // Daily attendee joins over the period
-    const dailyJoins = await prisma.$queryRawUnsafe(`
+    const dailyJoins = await prisma.$queryRaw`
       SELECT DATE("joinedAt") as date, COUNT(*)::int as count
       FROM "EventAttendee"
-      WHERE "eventId" IN (SELECT id FROM "Event" WHERE "businessId" = $1::uuid)
-        AND "joinedAt" >= $2
+      WHERE "eventId" IN (SELECT id FROM "Event" WHERE "businessId" = ${bizId}::uuid)
+        AND "joinedAt" >= ${since}
       GROUP BY DATE("joinedAt")
       ORDER BY date ASC
-    `, bizId, since);
+    `;
 
     // Daily event views over the period
     const eventViewTotals = await prisma.event.findMany({
@@ -341,23 +341,24 @@ router.post('/:id/reviews', requireUser, validate(createReviewSchema), async (re
     const business = await prisma.business.findUnique({ where: { id: req.params.id } });
     if (!business) return res.status(404).json({ error: 'Business not found' });
 
-    const existing = await prisma.review.findUnique({
-      where: { businessId_userId: { businessId: req.params.id, userId: req.user.id } },
-    });
-    if (existing) {
-      return res.status(409).json({ error: 'You have already reviewed this business' });
+    // Use try/create with unique constraint to prevent race condition duplicates
+    try {
+      const review = await prisma.review.create({
+        data: {
+          businessId: req.params.id,
+          userId: req.user.id,
+          rating: req.body.rating,
+          content: req.body.content,
+        },
+      });
+      res.status(201).json(review);
+    } catch (createErr) {
+      // Prisma P2002 = unique constraint violation
+      if (createErr.code === 'P2002') {
+        return res.status(409).json({ error: 'You have already reviewed this business' });
+      }
+      throw createErr;
     }
-
-    const review = await prisma.review.create({
-      data: {
-        businessId: req.params.id,
-        userId: req.user.id,
-        rating: req.body.rating,
-        content: req.body.content,
-      },
-    });
-
-    res.status(201).json(review);
   } catch (err) {
     next(err);
   }

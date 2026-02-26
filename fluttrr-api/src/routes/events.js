@@ -318,7 +318,13 @@ router.put('/:id', requireVerifiedBusiness, validate(updateEventSchema), async (
     // Whitelist safe fields to prevent businessId/status manipulation
     const { title, description, category, startTime, endTime, date, maxSpots, area, color, emoji, recurring } = req.body;
     const updateData = { title, description, category, startTime, endTime, maxSpots, area, color, emoji, recurring };
-    if (date) updateData.date = new Date(date);
+    if (date) {
+      const eventDate = new Date(date);
+      if (eventDate <= new Date()) {
+        return res.status(400).json({ error: 'Event date must be in the future' });
+      }
+      updateData.date = eventDate;
+    }
 
     const updated = await prisma.event.update({
       where: { id: req.params.id },
@@ -388,6 +394,7 @@ router.post('/:id/join', requireUser, async (req, res, next) => {
 
     if (!event) return res.status(404).json({ error: 'Event not found' });
     if (event.status !== 'ACTIVE') return res.status(400).json({ error: 'Event is not active' });
+    if (new Date(event.date) < new Date()) return res.status(400).json({ error: 'Event has already passed' });
 
     // Use a transaction to prevent race conditions on capacity checks
     await prisma.$transaction(async (tx) => {

@@ -124,4 +124,32 @@ async function sendPasswordResetEmail(to, code) {
   }
 }
 
-module.exports = { sendOtpEmail, sendPasswordResetEmail };
+async function sendPasswordChangedEmail(to) {
+  if (!resend) {
+    console.log(`[PASSWORD-CHANGED] ${to}`);
+    return;
+  }
+
+  try {
+    await resend.emails.send({
+      from: FROM,
+      to,
+      subject: 'Your Fluttrr password was changed',
+      html: baseHtml(`
+        <tr><td align="center" style="padding-bottom:8px;">
+          <span style="font-size:18px;font-weight:600;color:${BRAND.text};">Password changed</span>
+        </td></tr>
+        <tr><td align="center" style="padding-bottom:24px;">
+          <span style="font-size:14px;color:${BRAND.muted};">Your Fluttrr account password was just changed. If this was you, no action is needed.</span>
+        </td></tr>
+        <tr><td align="center">
+          <span style="font-size:13px;color:${BRAND.muted};">If you didn't make this change, please reset your password immediately or contact support.</span>
+        </td></tr>
+      `),
+    });
+  } catch (err) {
+    console.error('[EMAIL] Failed to send password changed email:', err.message);
+  }
+}
+
+module.exports = { sendOtpEmail, sendPasswordResetEmail, sendPasswordChangedEmail };

@@ -37,13 +37,13 @@ export default function AdminUsersScreen() {
     Alert.alert('Suspend User', `Suspend ${u.displayName}?`, [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Suspend', style: 'destructive', onPress: async () => {
-        try { await adminApi.suspendUser(u.id); fetchUsers(); } catch (e) { Alert.alert('Error', extractErrorMessage(e)); }
+        try { await adminApi.suspendUser(u.id); await fetchUsers(); } catch (e) { Alert.alert('Error', extractErrorMessage(e)); }
       }},
     ]);
   };
 
   const handleReinstate = async (u: AdminUserItem) => {
-    try { await adminApi.reinstateUser(u.id); fetchUsers(); } catch (e) { Alert.alert('Error', extractErrorMessage(e)); }
+    try { await adminApi.reinstateUser(u.id); await fetchUsers(); } catch (e) { Alert.alert('Error', extractErrorMessage(e)); }
   };
 
   const renderUser = ({ item }: { item: AdminUserItem }) => (

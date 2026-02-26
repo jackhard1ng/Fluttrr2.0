@@ -272,6 +272,16 @@ router.post('/dm', requireAuth, async (req, res, next) => {
       return res.status(400).json({ error: 'Target user or business ID required' });
     }
 
+    // Verify target exists
+    if (targetUserId) {
+      const targetUser = await prisma.user.findUnique({ where: { id: targetUserId }, select: { id: true } });
+      if (!targetUser) return res.status(404).json({ error: 'User not found' });
+    }
+    if (targetBusinessId) {
+      const targetBiz = await prisma.business.findUnique({ where: { id: targetBusinessId }, select: { id: true } });
+      if (!targetBiz) return res.status(404).json({ error: 'Business not found' });
+    }
+
     const currentId = getMemberId(req);
     const chatType = targetBusinessId ? 'BIZ_DM' : 'DM';
 
