@@ -176,35 +176,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   verifyOtp: async (email: string, code: string) => {
-    const response = await authApi.verifyOtp({ email, code });
-    const { accessToken, refreshToken, user, business } = response.data;
+    // Backend returns { message } on success — tokens were already stored during registration
+    await authApi.verifyOtp({ email, code });
 
-    await Promise.all([
-      secureStorage.setAccessToken(accessToken),
-      secureStorage.setRefreshToken(refreshToken),
-    ]);
+    // Mark as authenticated (tokens are already in storage from register step)
+    set({ isAuthenticated: true, pendingOtpEmail: null });
 
-    const accountType = get().accountType;
-
-    if (accountType === 'user' && user) {
-      await secureStorage.setUserData(JSON.stringify(user));
-      set({
-        isAuthenticated: true,
-        user,
-        isAdmin: user.role === UserRole.ADMIN,
-        pendingOtpEmail: null,
-      });
-    } else if (accountType === 'business' && business) {
-      await secureStorage.setUserData(JSON.stringify(business));
-      set({
-        isAuthenticated: true,
-        business,
-        pendingOtpEmail: null,
-      });
-    } else {
-      // Fallback: just mark as authenticated
-      set({ isAuthenticated: true, pendingOtpEmail: null });
-    }
+    // Refresh profile to get updated emailVerified status
+    get().refreshProfile().catch(() => {});
   },
 
   logout: async () => {

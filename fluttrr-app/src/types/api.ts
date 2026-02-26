@@ -37,6 +37,7 @@ export interface RegisterBusinessData {
   password: string;
   businessName: string;
   address: string;
+  city?: string;
   description?: string;
   phone?: string;
   website?: string;
@@ -115,6 +116,7 @@ export interface UpdateUserData {
   bio?: string;
   profilePhoto?: string;
   city?: string;
+  fcmToken?: string;
 }
 
 // Business profile
@@ -125,6 +127,7 @@ export interface UpdateBusinessData {
   phone?: string;
   website?: string;
   logo?: string;
+  fcmToken?: string;
 }
 
 // Reviews

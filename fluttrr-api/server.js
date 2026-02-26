@@ -26,6 +26,9 @@ const path = require('path');
 const app = express();
 const server = http.createServer(app);
 
+// Trust proxy for correct req.protocol (https) behind reverse proxy / load balancer
+app.set('trust proxy', 1);
+
 // ─── View Engine (EJS) ─────────────────────────────────
 
 app.set('view engine', 'ejs');

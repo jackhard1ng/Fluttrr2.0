@@ -92,7 +92,7 @@ router.get('/events', requireBusiness, async (req, res, next) => {
       prisma.event.findMany({
         where,
         include: {
-          _count: { select: { attendees: { where: { status: 'JOINED' } } } },
+          attendees: { where: { status: 'JOINED' }, select: { guestCount: true } },
         },
         orderBy: { date: 'desc' },
         skip,
@@ -103,8 +103,8 @@ router.get('/events', requireBusiness, async (req, res, next) => {
 
     const eventsWithStats = events.map((event) => ({
       ...event,
-      attendeeCount: event._count.attendees,
-      _count: undefined,
+      attendeeCount: event.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0),
+      attendees: undefined,
     }));
 
     res.json({
@@ -265,7 +265,7 @@ router.get('/:id', async (req, res, next) => {
           date: { gte: new Date() },
         },
         include: {
-          _count: { select: { attendees: { where: { status: 'JOINED' } } } },
+          attendees: { where: { status: 'JOINED' }, select: { guestCount: true } },
         },
         orderBy: { date: 'asc' },
         take: 10,
@@ -289,8 +289,8 @@ router.get('/:id', async (req, res, next) => {
       ...business,
       events: upcomingEvents.map((e) => ({
         ...e,
-        attendeeCount: e._count.attendees,
-        _count: undefined,
+        attendeeCount: e.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0),
+        attendees: undefined,
       })),
       reviews,
       avgRating: avgRating._avg.rating ? parseFloat(avgRating._avg.rating.toFixed(1)) : null,

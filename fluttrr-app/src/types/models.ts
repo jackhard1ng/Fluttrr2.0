@@ -51,6 +51,7 @@ export interface Business {
   verified: boolean;
   status: BusinessStatus;
   subscriptionTier: string;
+  subscriptionEndsAt: string | null;
   stripeCustomerId: string | null;
   stripeSubId: string | null;
   fcmToken: string | null;

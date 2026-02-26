@@ -62,7 +62,7 @@ router.get('/events', async (req, res, next) => {
         where,
         include: {
           business: { select: { businessName: true, logo: true } },
-          _count: { select: { attendees: { where: { status: 'JOINED' } } } },
+          attendees: { where: { status: 'JOINED' }, select: { guestCount: true } },
         },
         orderBy: { date: 'asc' },
         skip,
@@ -86,8 +86,8 @@ router.get('/events', async (req, res, next) => {
 
     const eventsFormatted = events.map((e) => ({
       ...e,
-      attendeeCount: e._count.attendees,
-      _count: undefined,
+      attendeeCount: e.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0),
+      attendees: undefined,
     }));
 
     const totalPages = Math.ceil(total / limit);
@@ -105,6 +105,7 @@ router.get('/events', async (req, res, next) => {
       events: eventsFormatted,
       areas,
       currentArea: area || null,
+      currentCategory: category || null,
       currentPage: pageNum,
       totalPages,
       categoryLabels: CATEGORY_LABELS,
@@ -123,7 +124,7 @@ router.get('/event/:id', async (req, res, next) => {
       where: { id: req.params.id },
       include: {
         business: { select: { id: true, businessName: true, logo: true, address: true } },
-        _count: { select: { attendees: { where: { status: 'JOINED' } } } },
+        attendees: { where: { status: 'JOINED' }, select: { guestCount: true } },
       },
     });
 
@@ -139,8 +140,8 @@ router.get('/event/:id', async (req, res, next) => {
 
     const eventFormatted = {
       ...event,
-      attendeeCount: event._count.attendees,
-      _count: undefined,
+      attendeeCount: event.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0),
+      attendees: undefined,
     };
 
     const baseUrl = `${req.protocol}://${req.get('host')}`;
@@ -161,9 +162,25 @@ router.get('/event/:id', async (req, res, next) => {
         '@type': 'Event',
         name: event.title,
         description: event.description || `${catLabel} event in Kansas City`,
-        startDate: new Date(event.date).toISOString(),
+        startDate: (() => {
+          const d = new Date(event.date);
+          if (event.startTime) {
+            const parsed = formatTime(event.startTime);
+            const match = parsed.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+            if (match) {
+              let h = parseInt(match[1]);
+              const m = parseInt(match[2]);
+              if (match[3].toUpperCase() === 'PM' && h !== 12) h += 12;
+              if (match[3].toUpperCase() === 'AM' && h === 12) h = 0;
+              d.setHours(h, m, 0, 0);
+            }
+          }
+          return d.toISOString();
+        })(),
         eventAttendanceMode: 'https://schema.org/OfflineEventAttendanceMode',
-        eventStatus: 'https://schema.org/EventScheduled',
+        eventStatus: event.status === 'CANCELLED'
+          ? 'https://schema.org/EventCancelled'
+          : 'https://schema.org/EventScheduled',
         location: {
           '@type': 'Place',
           name: event.area || event.business?.address || 'Kansas City',
@@ -240,9 +257,9 @@ router.get('/sitemap.xml', async (req, res) => {
   try {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-    // Get all active events for dynamic URLs
+    // Get all active, upcoming events for dynamic URLs
     const events = await prisma.event.findMany({
-      where: { status: 'ACTIVE' },
+      where: { status: 'ACTIVE', date: { gte: new Date() } },
       select: { id: true, updatedAt: true },
       orderBy: { date: 'desc' },
       take: 500,
@@ -313,7 +330,7 @@ router.get('/', async (req, res, next) => {
       },
       include: {
         business: { select: { businessName: true, logo: true } },
-        _count: { select: { attendees: { where: { status: 'JOINED' } } } },
+        attendees: { where: { status: 'JOINED' }, select: { guestCount: true } },
       },
       orderBy: [{ views: 'desc' }, { date: 'asc' }],
       take: 6,
@@ -321,8 +338,8 @@ router.get('/', async (req, res, next) => {
 
     const featuredFormatted = featured.map((e) => ({
       ...e,
-      attendeeCount: e._count.attendees,
-      _count: undefined,
+      attendeeCount: e.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0),
+      attendees: undefined,
     }));
 
     // Fetch area counts

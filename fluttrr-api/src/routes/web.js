@@ -29,7 +29,7 @@ router.get('/events', async (req, res, next) => {
           startTime: true, endTime: true, date: true, area: true,
           color: true, emoji: true, photos: true,
           business: { select: { businessName: true, logo: true } },
-          _count: { select: { attendees: { where: { status: 'JOINED' } } } },
+          attendees: { where: { status: 'JOINED' }, select: { guestCount: true } },
         },
         orderBy: { date: 'asc' },
         skip,
@@ -40,8 +40,8 @@ router.get('/events', async (req, res, next) => {
 
     const eventsForWeb = events.map((event) => ({
       ...event,
-      attendeeCount: event._count.attendees,
-      _count: undefined,
+      attendeeCount: event.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0),
+      attendees: undefined,
     }));
 
     res.json({
@@ -68,7 +68,7 @@ router.get('/events/featured', async (req, res, next) => {
         id: true, title: true, description: true, category: true,
         startTime: true, date: true, area: true, color: true, emoji: true,
         business: { select: { businessName: true, logo: true } },
-        _count: { select: { attendees: { where: { status: 'JOINED' } } } },
+        attendees: { where: { status: 'JOINED' }, select: { guestCount: true } },
       },
       orderBy: [{ views: 'desc' }, { date: 'asc' }],
       take: 10,
@@ -77,8 +77,8 @@ router.get('/events/featured', async (req, res, next) => {
     res.json({
       events: events.map((e) => ({
         ...e,
-        attendeeCount: e._count.attendees,
-        _count: undefined,
+        attendeeCount: e.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0),
+        attendees: undefined,
       })),
     });
   } catch (err) {
@@ -97,7 +97,7 @@ router.get('/events/:id', async (req, res, next) => {
         startTime: true, endTime: true, date: true, area: true,
         color: true, emoji: true, photos: true,
         business: { select: { id: true, businessName: true, logo: true, address: true } },
-        _count: { select: { attendees: { where: { status: 'JOINED' } } } },
+        attendees: { where: { status: 'JOINED' }, select: { guestCount: true } },
       },
     });
 
@@ -105,8 +105,8 @@ router.get('/events/:id', async (req, res, next) => {
 
     res.json({
       ...event,
-      attendeeCount: event._count.attendees,
-      _count: undefined,
+      attendeeCount: event.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0),
+      attendees: undefined,
     });
   } catch (err) {
     next(err);

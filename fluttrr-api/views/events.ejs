@@ -11,9 +11,9 @@
   <!-- Category filter -->
   <% if (areas && areas.length > 0) { %>
   <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 24px;">
-    <a href="/events" class="badge" style="background: <%= !currentArea ? '#1E90FF' : '#30363D' %>;">All KC</a>
+    <a href="/events<%= currentCategory ? '?category=' + encodeURIComponent(currentCategory) : '' %>" class="badge" style="background: <%= !currentArea ? '#1E90FF' : '#30363D' %>;">All KC</a>
     <% areas.forEach(a => { %>
-    <a href="/events?area=<%= encodeURIComponent(a.area) %>" class="badge"
+    <a href="/events?area=<%= encodeURIComponent(a.area) %><%= currentCategory ? '&category=' + encodeURIComponent(currentCategory) : '' %>" class="badge"
        style="background: <%= currentArea === a.area ? '#1E90FF' : '#30363D' %>;">
       <%= a.area %> (<%= a.eventCount %>)
     </a>
@@ -70,14 +70,14 @@
   <% if (totalPages > 1) { %>
   <div style="display: flex; justify-content: center; gap: 12px; margin-top: 32px;">
     <% if (currentPage > 1) { %>
-    <a href="/events?page=<%= currentPage - 1 %><%= currentArea ? '&area=' + encodeURIComponent(currentArea) : '' %>"
+    <a href="/events?page=<%= currentPage - 1 %><%= currentArea ? '&area=' + encodeURIComponent(currentArea) : '' %><%= currentCategory ? '&category=' + encodeURIComponent(currentCategory) : '' %>"
        style="padding: 8px 16px; background: #161B22; border: 1px solid #30363D; border-radius: 8px;">
       &larr; Previous
     </a>
     <% } %>
     <span style="padding: 8px 16px; color: #8B949E;">Page <%= currentPage %> of <%= totalPages %></span>
     <% if (currentPage < totalPages) { %>
-    <a href="/events?page=<%= currentPage + 1 %><%= currentArea ? '&area=' + encodeURIComponent(currentArea) : '' %>"
+    <a href="/events?page=<%= currentPage + 1 %><%= currentArea ? '&area=' + encodeURIComponent(currentArea) : '' %><%= currentCategory ? '&category=' + encodeURIComponent(currentCategory) : '' %>"
        style="padding: 8px 16px; background: #161B22; border: 1px solid #30363D; border-radius: 8px;">
       Next &rarr;
     </a>

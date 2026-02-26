@@ -1,4 +1,4 @@
-import { format, parseISO, isToday, isTomorrow, isFuture, isPast, formatDistanceToNow, differenceInDays } from 'date-fns';
+import { format, parseISO, isToday, isTomorrow, isFuture, isPast, isThisWeek, formatDistanceToNow, differenceInDays } from 'date-fns';
 
 export function formatEventDate(dateStr: string): string {
   const date = parseISO(dateStr);

@@ -27,7 +27,7 @@ export const authApi = {
   },
 
   verifyOtp(data: VerifyOtpData) {
-    return client.post<AuthResponse>('/api/auth/verify-otp', data);
+    return client.post<{ message: string }>('/api/auth/verify-otp', data);
   },
 
   resendOtp(email: string) {

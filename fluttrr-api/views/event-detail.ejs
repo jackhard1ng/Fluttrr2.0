@@ -43,7 +43,9 @@
           <span>👥</span>
           <div>
             <p style="font-size: 12px; color: #8B949E;">Attendees</p>
-            <p style="font-size: 15px; font-weight: 500;"><%= event.attendeeCount %> going</p>
+            <p style="font-size: 15px; font-weight: 500;">
+              <%= event.attendeeCount %> going<% if (event.maxSpots) { %> &middot; <%= Math.max(0, event.maxSpots - event.attendeeCount) %> spots left<% } %>
+            </p>
           </div>
         </div>
       </div>
@@ -66,16 +68,33 @@
           <%= formatDate(event.date) %> &middot; <%= formatTime(event.startTime) %>
         </p>
 
+        <% if (event.status === 'ACTIVE' && new Date(event.date) >= new Date(new Date().toDateString())) { %>
         <a href="fluttrr://event/<%= event.id %>" class="app-cta" style="display: block; text-align: center;">
           Join Event in App
         </a>
-
         <p style="font-size: 12px; color: #8B949E; margin-top: 12px;">
           Download Fluttrr to join events and chat with attendees
         </p>
+        <% } else if (event.status === 'CANCELLED') { %>
+        <div style="padding: 12px; background: #da363422; border: 1px solid #da3634; border-radius: 8px; text-align: center;">
+          <p style="color: #da3634; font-weight: 600;">This event has been cancelled</p>
+        </div>
+        <% } else if (new Date(event.date) < new Date(new Date().toDateString())) { %>
+        <div style="padding: 12px; background: #30363D; border-radius: 8px; text-align: center;">
+          <p style="color: #8B949E; font-weight: 600;">This event has ended</p>
+        </div>
+        <% } else { %>
+        <a href="fluttrr://event/<%= event.id %>" class="app-cta" style="display: block; text-align: center;">
+          View in App
+        </a>
+        <% } %>
 
-        <div style="display: flex; gap: 8px; justify-content: center; margin-top: 16px;">
+        <div style="display: flex; gap: 8px; justify-content: center; margin-top: 16px; flex-wrap: wrap;">
           <span class="badge" style="background: #3FB950;">👥 <%= event.attendeeCount %> going</span>
+          <% if (event.maxSpots) { %>
+          <% const spotsLeft = Math.max(0, event.maxSpots - event.attendeeCount); %>
+          <span class="badge" style="background: <%= spotsLeft === 0 ? '#da3634' : '#30363D' %>;"><%= spotsLeft === 0 ? 'Full' : spotsLeft + ' spots left' %></span>
+          <% } %>
         </div>
       </div>
     </div>
