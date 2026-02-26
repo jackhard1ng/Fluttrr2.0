@@ -100,6 +100,7 @@ export default function EditEventScreen() {
   const pad = (n: number) => n.toString().padStart(2, '0');
 
   const handleSubmit = async () => {
+    if (!id) return Alert.alert('Error', 'Invalid event');
     if (!title.trim()) return Alert.alert('Required', 'Please enter an event title');
     if (!category) return Alert.alert('Required', 'Please select a category');
 

@@ -219,6 +219,8 @@ model EventAttendee {
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
 }
 
 model Chat {
@@ -247,6 +249,9 @@ model ChatMember {
   business Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@unique([chatId, userId])
+  @@index([chatId])
+  @@index([userId])
+  @@index([businessId])
 }
 
 model Message {

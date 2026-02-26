@@ -227,6 +227,14 @@ router.post('/', requireVerifiedBusiness, eventCreateLimiter, validate(createEve
   try {
     const { title, description, category, startTime, endTime, date, maxSpots, area, color, emoji, recurring, recurringDay } = req.body;
 
+    const eventDate = new Date(date);
+    if (isNaN(eventDate.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format' });
+    }
+    if (eventDate <= new Date()) {
+      return res.status(400).json({ error: 'Event date must be in the future' });
+    }
+
     const event = await prisma.event.create({
       data: {
         businessId: req.business.id,
@@ -235,7 +243,7 @@ router.post('/', requireVerifiedBusiness, eventCreateLimiter, validate(createEve
         category,
         startTime,
         endTime,
-        date: new Date(date),
+        date: eventDate,
         maxSpots,
         lat: req.business.lat,
         lng: req.business.lng,
@@ -327,48 +335,57 @@ router.post('/:id/join', requireUser, async (req, res, next) => {
     if (!event) return res.status(404).json({ error: 'Event not found' });
     if (event.status !== 'ACTIVE') return res.status(400).json({ error: 'Event is not active' });
 
-    // Calculate total people (each attendee + their guests)
-    const totalPeople = event.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0);
+    // Use a transaction to prevent race conditions on capacity checks
+    await prisma.$transaction(async (tx) => {
+      // Re-check capacity inside transaction for consistency
+      const currentAttendees = await tx.eventAttendee.findMany({
+        where: { eventId: event.id, status: 'JOINED' },
+        select: { guestCount: true },
+      });
+      const totalPeople = currentAttendees.reduce((sum, a) => sum + 1 + a.guestCount, 0);
 
-    // Check capacity (the new joiner + their guests must fit)
-    if (event.maxSpots && (totalPeople + 1 + guestCount) > event.maxSpots) {
-      const spotsLeft = Math.max(0, event.maxSpots - totalPeople);
-      return res.status(400).json({ error: spotsLeft > 0 ? `Only ${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left` : 'Event is full' });
-    }
+      if (event.maxSpots && (totalPeople + 1 + guestCount) > event.maxSpots) {
+        const spotsLeft = Math.max(0, event.maxSpots - totalPeople);
+        const msg = spotsLeft > 0 ? `Only ${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left` : 'Event is full';
+        throw new Error(msg);
+      }
 
-    // Check if already joined
-    const existing = await prisma.eventAttendee.findUnique({
-      where: { eventId_userId: { eventId: event.id, userId: req.user.id } },
+      // Check if already joined
+      const existing = await tx.eventAttendee.findUnique({
+        where: { eventId_userId: { eventId: event.id, userId: req.user.id } },
+      });
+      if (existing && existing.status === 'JOINED') {
+        throw new Error('Already joined this event');
+      }
+
+      // Upsert attendee (handles re-joining after leaving)
+      await tx.eventAttendee.upsert({
+        where: { eventId_userId: { eventId: event.id, userId: req.user.id } },
+        create: { eventId: event.id, userId: req.user.id, status: 'JOINED', guestCount },
+        update: { status: 'JOINED', joinedAt: new Date(), guestCount },
+      });
+
+      // Add user to event group chat
+      if (event.chat) {
+        await tx.chatMember.upsert({
+          where: { chatId_userId: { chatId: event.chat.id, userId: req.user.id } },
+          create: { chatId: event.chat.id, userId: req.user.id },
+          update: {},
+        });
+      }
     });
-    if (existing && existing.status === 'JOINED') {
-      return res.status(400).json({ error: 'Already joined this event' });
-    }
 
-    // Upsert attendee (handles re-joining after leaving)
-    await prisma.eventAttendee.upsert({
-      where: { eventId_userId: { eventId: event.id, userId: req.user.id } },
-      create: { eventId: event.id, userId: req.user.id, status: 'JOINED', guestCount },
-      update: { status: 'JOINED', joinedAt: new Date(), guestCount },
-    });
-
-    // Add user to event group chat
+    // Emit socket event (only if chat exists)
     if (event.chat) {
-      await prisma.chatMember.upsert({
-        where: { chatId_userId: { chatId: event.chat.id, userId: req.user.id } },
-        create: { chatId: event.chat.id, userId: req.user.id },
-        update: {},
-      });
-    }
-
-    // Emit socket event
-    const io = req.app.get('io');
-    if (io) {
-      io.to(`chat:${event.chat?.id}`).emit('user_joined_event', {
-        eventId: event.id,
-        userId: req.user.id,
-        username: req.user.username,
-        displayName: req.user.displayName,
-      });
+      const io = req.app.get('io');
+      if (io) {
+        io.to(`chat:${event.chat.id}`).emit('user_joined_event', {
+          eventId: event.id,
+          userId: req.user.id,
+          username: req.user.username,
+          displayName: req.user.displayName,
+        });
+      }
     }
 
     // Push notification to business owner
@@ -381,6 +398,10 @@ router.post('/:id/join', requireUser, async (req, res, next) => {
 
     res.json({ message: 'Joined event', chatId: event.chat?.id, guestCount });
   } catch (err) {
+    // Handle known errors from the transaction as 400s
+    if (err.message === 'Event is full' || err.message === 'Already joined this event' || err.message?.startsWith('Only ')) {
+      return res.status(400).json({ error: err.message });
+    }
     next(err);
   }
 });

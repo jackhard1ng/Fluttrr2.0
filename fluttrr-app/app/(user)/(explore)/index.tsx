@@ -16,7 +16,9 @@ import { Colors } from '@/constants/colors';
 import { Chip } from '@/components/ui/Chip';
 import { EventListCard } from '@/components/event/EventCard';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorView } from '@/components/ui/ErrorView';
 import { eventsApi, type EventListParams } from '@/api/events';
+import { extractErrorMessage } from '@/utils/error';
 import { CATEGORY_META, KC_NEIGHBORHOODS } from '@/constants/categories';
 import { EventCategory } from '@/types/enums';
 import type { Event } from '@/types/models';
@@ -44,6 +46,7 @@ export default function ExploreScreen() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchEvents = useCallback(
     async (pageNum = 1, append = false) => {
@@ -57,6 +60,7 @@ export default function ExploreScreen() {
       if (searchQuery.trim().length >= 2) params.search = searchQuery.trim();
 
       try {
+        setError(null);
         const { data } = await eventsApi.list(params);
         if (append) {
           setEvents((prev) => [...prev, ...data.events]);
@@ -65,7 +69,9 @@ export default function ExploreScreen() {
         }
         setPage(pageNum);
         setTotalPages(data.totalPages);
-      } catch {}
+      } catch (err) {
+        if (!append) setError(extractErrorMessage(err));
+      }
     },
     [selectedCategory, selectedArea, searchQuery],
   );
@@ -168,6 +174,8 @@ export default function ExploreScreen() {
             <View style={styles.centered}>
               <ActivityIndicator size="large" color={Colors.blue} />
             </View>
+          ) : error ? (
+            <ErrorView message={error} onRetry={() => fetchEvents(1)} />
           ) : (
             <EmptyState
               emoji="🔍"

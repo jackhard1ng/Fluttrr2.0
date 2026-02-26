@@ -13,21 +13,27 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { ScreenHeader } from '@/components/ui/ScreenHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorView } from '@/components/ui/ErrorView';
 import { usersApi } from '@/api/users';
 import type { Notification } from '@/types/models';
 import { formatRelativeTime } from '@/utils/date';
+import { extractErrorMessage } from '@/utils/error';
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetch = useCallback(async () => {
     try {
+      setError(null);
       const { data } = await usersApi.getNotifications();
       setNotifications(data.data);
-    } catch {}
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
   }, []);
 
   useEffect(() => {
@@ -58,6 +64,8 @@ export default function NotificationsScreen() {
         ListEmptyComponent={
           loading ? (
             <ActivityIndicator size="large" color={Colors.blue} style={{ marginTop: 40 }} />
+          ) : error ? (
+            <ErrorView message={error} onRetry={fetch} />
           ) : (
             <EmptyState
               emoji="🔔"

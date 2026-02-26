@@ -186,7 +186,7 @@ export default function EventDetailScreen() {
           <InfoRow emoji="👥" label="Attendees" value={`${event.attendeeCount} going`}>
             <SpotsLabel spotsLeft={event.spotsLeft} size="md" />
           </InfoRow>
-          <InfoRow emoji="👁️" label="Views" value={`${event.views}`} />
+          <InfoRow emoji="👁️" label="Views" value={`${event.views ?? 0}`} />
         </View>
 
         {/* Description */}

@@ -23,7 +23,7 @@ export default function RootLayout() {
       setNeedsOnboarding(val !== 'true');
       setOnboardingChecked(true);
     });
-  }, []);
+  }, [hydrate]);
 
   // Auth gate: redirect based on auth state
   useEffect(() => {

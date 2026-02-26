@@ -86,7 +86,9 @@ export default function MomentDetailScreen() {
       await momentsApi.comment(id, commentText.trim());
       setCommentText('');
       fetchMoment();
-    } catch {}
+    } catch {
+      // Comment failed silently - user can retry
+    }
     setCommenting(false);
   };
 
