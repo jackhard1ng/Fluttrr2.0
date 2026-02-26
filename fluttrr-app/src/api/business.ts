@@ -1,5 +1,6 @@
 import client from './client';
 import type { Business, Event } from '@/types/models';
+import type { CreateEventData } from '@/types/api';
 
 interface BusinessProfileResponse extends Business {
   eventCount: number;
@@ -53,5 +54,17 @@ export const businessApi = {
 
   getEvents(params?: { filter?: 'all' | 'active' | 'past'; page?: number; limit?: number }) {
     return client.get<BusinessEventsResponse>('/api/business/events', { params });
+  },
+
+  createEvent(data: CreateEventData) {
+    return client.post<Event & { chatId: string }>('/api/events', data);
+  },
+
+  updateEvent(id: string, data: Partial<CreateEventData>) {
+    return client.put<Event>(`/api/events/${id}`, data);
+  },
+
+  deleteEvent(id: string) {
+    return client.delete<{ message: string }>(`/api/events/${id}`);
   },
 };

@@ -20,7 +20,8 @@
         "NSLocationWhenInUseUsageDescription": "Fluttrr uses your location to show nearby events.",
         "NSCameraUsageDescription": "Fluttrr needs camera access to take profile photos.",
         "NSPhotoLibraryUsageDescription": "Fluttrr needs photo library access to set your profile photo."
-      }
+      },
+      "associatedDomains": ["applinks:fluttrr.com"]
     },
     "android": {
       "package": "com.fluttrr.app",
@@ -33,6 +34,20 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "CAMERA"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "fluttrr.com",
+              "pathPrefix": "/event"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
       ]
     },
     "web": {
@@ -63,7 +78,8 @@
           "icon": "./assets/notification-icon.png",
           "color": "#1E90FF"
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

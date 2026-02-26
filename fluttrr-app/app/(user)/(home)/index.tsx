@@ -103,13 +103,21 @@ export default function HomeScreen() {
         >
           <Text style={styles.logo}>🦋 fluttrr</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => router.push('/(user)/(home)/notifications')}
-          style={styles.bellButton}
-        >
-          <Text style={styles.bell}>🔔</Text>
-          <StatusDot style={styles.bellDot} />
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={() => router.push('/(user)/(home)/moments')}
+            style={styles.bellButton}
+          >
+            <Text style={styles.bell}>💭</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/(user)/(home)/notifications')}
+            style={styles.bellButton}
+          >
+            <Text style={styles.bell}>🔔</Text>
+            <StatusDot style={styles.bellDot} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Featured section */}
@@ -204,6 +212,11 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: Colors.text,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'center',
   },
   bellButton: {
     position: 'relative',

@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Share,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -135,7 +136,17 @@ export default function EventDetailScreen() {
         <Text style={styles.headerTitle} numberOfLines={1}>
           Event Details
         </Text>
-        <View style={{ width: 28 }} />
+        <TouchableOpacity
+          onPress={() => {
+            Share.share({
+              message: `Check out "${event.title}" on Fluttrr! fluttrr://event/${id}`,
+              url: `https://fluttrr.com/event/${id}`,
+            });
+          }}
+          style={styles.shareBtn}
+        >
+          <Text style={styles.shareIcon}>↗</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -313,6 +324,14 @@ const styles = StyleSheet.create({
     fontSize: 28,
     color: Colors.blue,
     lineHeight: 28,
+  },
+  shareBtn: {
+    width: 28,
+    alignItems: 'flex-end',
+  },
+  shareIcon: {
+    fontSize: 20,
+    color: Colors.blue,
   },
   headerTitle: {
     flex: 1,

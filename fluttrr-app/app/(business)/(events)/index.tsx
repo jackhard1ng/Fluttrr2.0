@@ -81,6 +81,12 @@ export default function BusinessEventsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your Events</Text>
+        <TouchableOpacity
+          style={styles.createBtn}
+          onPress={() => router.push('/(business)/(events)/create')}
+        >
+          <Text style={styles.createBtnText}>+ New Event</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.filterRow}>
@@ -120,8 +126,10 @@ export default function BusinessEventsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dark },
-  header: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4 },
+  header: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 4, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 22, fontWeight: '700', color: Colors.text },
+  createBtn: { backgroundColor: Colors.blue, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  createBtnText: { fontSize: 13, fontWeight: '600', color: '#fff' },
   filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginVertical: 10 },
   eventCard: { marginBottom: 10 },
   eventRow: { flexDirection: 'row', gap: 12 },
