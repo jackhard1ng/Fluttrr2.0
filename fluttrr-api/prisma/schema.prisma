@@ -1,0 +1,400 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum BusinessStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+}
+
+enum EventStatus {
+  DRAFT
+  ACTIVE
+  CANCELLED
+  COMPLETED
+}
+
+enum EventCategory {
+  GAMES
+  FOOD_DRINK
+  MUSIC
+  SPORTS
+  FITNESS
+  ARTS
+  SOCIAL
+  EDUCATION
+  NIGHTLIFE
+  OTHER
+}
+
+enum RecurrenceType {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  FIRST_FRIDAY
+}
+
+enum AttendeeStatus {
+  JOINED
+  LEFT
+  ATTENDED
+}
+
+enum ChatType {
+  EVENT_GROUP
+  DM
+  BIZ_DM
+}
+
+enum SenderType {
+  USER
+  BUSINESS
+}
+
+enum ReportType {
+  USER
+  BUSINESS
+  EVENT
+  MESSAGE
+  MOMENT
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+enum NotificationType {
+  EVENT_REMINDER
+  EVENT_JOINED
+  EVENT_CANCELLED
+  CHAT_MESSAGE
+  MOMENT_LIKE
+  MOMENT_COMMENT
+  ADMIN_MESSAGE
+  BUSINESS_VERIFIED
+  BUSINESS_SUSPENDED
+  NEW_FOLLOWER
+}
+
+// ─── Models ──────────────────────────────────────────────
+
+model User {
+  id            String        @id @default(uuid()) @db.Uuid
+  email         String        @unique
+  passwordHash  String
+  username      String        @unique
+  displayName   String
+  bio           String?
+  profilePhoto  String
+  city          String?
+  lat           Float?
+  lng           Float?
+  role          UserRole      @default(USER)
+  status        AccountStatus @default(ACTIVE)
+  emailVerified Boolean       @default(false)
+  fcmToken      String?
+  lastLoginAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  eventAttendees EventAttendee[]
+  chatMembers    ChatMember[]
+  moments        Moment[]
+  momentLikes    MomentLike[]
+  momentComments MomentComment[]
+  reviews        Review[]
+  reports        Report[]
+  blockedUsers   BlockedUser[]  @relation("Blocker")
+  blockedBy      BlockedUser[]  @relation("Blocked")
+  notifications  Notification[]
+  otpCodes       OtpCode[]
+
+  @@index([email])
+  @@index([username])
+  @@index([city])
+  @@index([status])
+}
+
+model Business {
+  id               String         @id @default(uuid()) @db.Uuid
+  email            String         @unique
+  passwordHash     String
+  businessName     String
+  description      String?
+  address          String
+  city             String?
+  lat              Float?
+  lng              Float?
+  phone            String?
+  website          String?
+  logo             String?
+  photos           String[]       @default([])
+  verified         Boolean        @default(false)
+  status           BusinessStatus @default(PENDING)
+  stripeCustomerId String?
+  stripeSubId      String?
+  fcmToken         String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  events      Event[]
+  chatMembers ChatMember[]
+  reviews     Review[]
+  stories     Story[]
+  otpCodes    OtpCode[]
+
+  @@index([email])
+  @@index([city])
+  @@index([status])
+  @@index([verified])
+}
+
+model Event {
+  id            String          @id @default(uuid()) @db.Uuid
+  businessId    String          @db.Uuid
+  title         String
+  description   String?
+  category      EventCategory
+  startTime     String
+  endTime       String?
+  date          DateTime
+  maxSpots      Int?
+  lat           Float?
+  lng           Float?
+  area          String?
+  color         String?
+  emoji         String?
+  photos        String[]        @default([])
+  status        EventStatus     @default(ACTIVE)
+  recurring     RecurrenceType?
+  recurringDay  Int?
+  parentEventId String?         @db.Uuid
+  views         Int             @default(0)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  business    Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  parentEvent Event?          @relation("RecurringEvents", fields: [parentEventId], references: [id])
+  childEvents Event[]         @relation("RecurringEvents")
+  attendees   EventAttendee[]
+  chat        Chat?
+
+  @@index([businessId])
+  @@index([category])
+  @@index([date])
+  @@index([status])
+  @@index([area])
+  @@index([parentEventId])
+}
+
+model EventAttendee {
+  id       String         @id @default(uuid()) @db.Uuid
+  eventId  String         @db.Uuid
+  userId   String         @db.Uuid
+  status   AttendeeStatus @default(JOINED)
+  joinedAt DateTime       @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+}
+
+model Chat {
+  id            String     @id @default(uuid()) @db.Uuid
+  type          ChatType
+  eventId       String?    @unique @db.Uuid
+  pinnedMessage String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  event   Event?       @relation(fields: [eventId], references: [id])
+  members ChatMember[]
+  messages Message[]
+}
+
+model ChatMember {
+  id         String    @id @default(uuid()) @db.Uuid
+  chatId     String    @db.Uuid
+  userId     String?   @db.Uuid
+  businessId String?   @db.Uuid
+  joinedAt   DateTime  @default(now())
+  lastReadAt DateTime?
+
+  chat     Chat      @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user     User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  business Business? @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([chatId, userId])
+}
+
+model Message {
+  id         String     @id @default(uuid()) @db.Uuid
+  chatId     String     @db.Uuid
+  senderId   String
+  senderType SenderType
+  content    String
+  createdAt  DateTime   @default(now())
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model Moment {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  content   String?
+  photos    String[] @default([])
+  eventId   String?  @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes    MomentLike[]
+  comments MomentComment[]
+}
+
+model MomentLike {
+  id        String   @id @default(uuid()) @db.Uuid
+  momentId  String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  moment Moment @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([momentId, userId])
+}
+
+model MomentComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  momentId  String   @db.Uuid
+  userId    String   @db.Uuid
+  content   String
+  createdAt DateTime @default(now())
+
+  moment Moment @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Review {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  userId     String   @db.Uuid
+  rating     Int
+  content    String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, userId])
+}
+
+model Story {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  photo      String
+  caption    String?
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model Report {
+  id           String       @id @default(uuid()) @db.Uuid
+  reportType   ReportType
+  targetId     String
+  reportedById String       @db.Uuid
+  reason       String
+  details      String?
+  status       ReportStatus @default(PENDING)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  reportedBy User @relation(fields: [reportedById], references: [id])
+}
+
+model BlockedUser {
+  id        String   @id @default(uuid()) @db.Uuid
+  blockerId String   @db.Uuid
+  blockedId String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+}
+
+model Notification {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+}
+
+model OtpCode {
+  id         String    @id @default(uuid()) @db.Uuid
+  email      String
+  code       String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  usedAt     DateTime?
+  userId     String?   @db.Uuid
+  businessId String?   @db.Uuid
+  createdAt  DateTime  @default(now())
+
+  user     User?     @relation(fields: [userId], references: [id])
+  business Business? @relation(fields: [businessId], references: [id])
+
+  @@index([email])
+  @@index([expiresAt])
+}
+
+model AdminMessage {
+  id         String   @id @default(uuid()) @db.Uuid
+  targetType String
+  targetId   String?  @db.Uuid
+  subject    String
+  body       String
+  sentBy     String
+  createdAt  DateTime @default(now())
+}

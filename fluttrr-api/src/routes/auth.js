@@ -1,0 +1,472 @@
+const express = require('express');
+const rateLimit = require('express-rate-limit');
+const prisma = require('../utils/prisma');
+const { hashPassword, comparePassword } = require('../utils/password');
+const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../utils/jwt');
+const { generateOtp, getOtpExpiry, isOtpExpired, MAX_OTP_ATTEMPTS } = require('../utils/otp');
+const {
+  registerUserSchema,
+  registerBusinessSchema,
+  loginSchema,
+  verifyOtpSchema,
+  validate,
+} = require('../validators/schemas');
+
+const router = express.Router();
+
+// ─── Rate Limiters ───────────────────────────────────────
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  message: { error: 'Too many login attempts, please try again later' },
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3,
+  message: { error: 'Too many accounts created, please try again later' },
+});
+
+const otpResendLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 1,
+  message: { error: 'Please wait before requesting another code' },
+});
+
+// ─── Helpers ─────────────────────────────────────────────
+
+function sanitizeUser(user) {
+  const { passwordHash, ...safe } = user;
+  return safe;
+}
+
+function sanitizeBusiness(business) {
+  const { passwordHash, ...safe } = business;
+  return safe;
+}
+
+// ─── POST /register ──────────────────────────────────────
+
+router.post('/register', registerLimiter, validate(registerUserSchema), async (req, res, next) => {
+  try {
+    const { email, password, username, displayName, profilePhoto, bio, city } = req.body;
+
+    // Check uniqueness
+    const existingEmail = await prisma.user.findUnique({ where: { email } });
+    if (existingEmail) {
+      return res.status(409).json({ error: 'Email already in use', field: 'email' });
+    }
+
+    const existingUsername = await prisma.user.findUnique({ where: { username } });
+    if (existingUsername) {
+      return res.status(409).json({ error: 'Username already taken', field: 'username' });
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    const user = await prisma.user.create({
+      data: {
+        email,
+        passwordHash,
+        username,
+        displayName,
+        profilePhoto,
+        bio,
+        city: city || 'Kansas City',
+      },
+    });
+
+    // Generate OTP
+    const code = generateOtp();
+    await prisma.otpCode.create({
+      data: {
+        email,
+        code,
+        expiresAt: getOtpExpiry(),
+        userId: user.id,
+      },
+    });
+
+    // TODO: Send OTP via Resend email
+    console.log(`[OTP] ${email}: ${code}`);
+
+    const tokenPayload = { id: user.id, email: user.email, type: 'user', role: user.role };
+    const accessToken = signAccessToken(tokenPayload);
+    const refreshToken = signRefreshToken(tokenPayload);
+
+    res.status(201).json({
+      user: sanitizeUser(user),
+      accessToken,
+      refreshToken,
+      otpRequired: true,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /register/business ─────────────────────────────
+
+router.post('/register/business', registerLimiter, validate(registerBusinessSchema), async (req, res, next) => {
+  try {
+    const { email, password, businessName, address, description, phone, website, city } = req.body;
+
+    const existingEmail = await prisma.business.findUnique({ where: { email } });
+    if (existingEmail) {
+      return res.status(409).json({ error: 'Email already in use', field: 'email' });
+    }
+
+    const passwordHash = await hashPassword(password);
+
+    const business = await prisma.business.create({
+      data: {
+        email,
+        passwordHash,
+        businessName,
+        address,
+        description,
+        phone,
+        website,
+        city: city || 'Kansas City',
+        // TODO: Geocode address to get lat/lng
+      },
+    });
+
+    // Generate OTP
+    const code = generateOtp();
+    await prisma.otpCode.create({
+      data: {
+        email,
+        code,
+        expiresAt: getOtpExpiry(),
+        businessId: business.id,
+      },
+    });
+
+    console.log(`[OTP] ${email}: ${code}`);
+
+    const tokenPayload = { id: business.id, email: business.email, type: 'business' };
+    const accessToken = signAccessToken(tokenPayload);
+    const refreshToken = signRefreshToken(tokenPayload);
+
+    res.status(201).json({
+      business: sanitizeBusiness(business),
+      accessToken,
+      refreshToken,
+      otpRequired: true,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /login ─────────────────────────────────────────
+
+router.post('/login', loginLimiter, validate(loginSchema), async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    if (user.status === 'SUSPENDED') {
+      return res.status(403).json({ error: 'Account suspended' });
+    }
+
+    const valid = await comparePassword(password, user.passwordHash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
+
+    const tokenPayload = { id: user.id, email: user.email, type: 'user', role: user.role };
+    const accessToken = signAccessToken(tokenPayload);
+    const refreshToken = signRefreshToken(tokenPayload);
+
+    res.json({
+      user: sanitizeUser(user),
+      accessToken,
+      refreshToken,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /login/business ────────────────────────────────
+
+router.post('/login/business', loginLimiter, validate(loginSchema), async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
+
+    const business = await prisma.business.findUnique({ where: { email } });
+    if (!business) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    if (business.status === 'SUSPENDED') {
+      return res.status(403).json({ error: 'Account suspended' });
+    }
+
+    const valid = await comparePassword(password, business.passwordHash);
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const tokenPayload = { id: business.id, email: business.email, type: 'business' };
+    const accessToken = signAccessToken(tokenPayload);
+    const refreshToken = signRefreshToken(tokenPayload);
+
+    res.json({
+      business: sanitizeBusiness(business),
+      accessToken,
+      refreshToken,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /verify-otp ───────────────────────────────────
+
+router.post('/verify-otp', validate(verifyOtpSchema), async (req, res, next) => {
+  try {
+    const { email, code } = req.body;
+
+    const otp = await prisma.otpCode.findFirst({
+      where: {
+        email,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!otp) {
+      return res.status(400).json({ error: 'No valid OTP found. Please request a new code.' });
+    }
+
+    if (isOtpExpired(otp.expiresAt)) {
+      return res.status(400).json({ error: 'OTP has expired. Please request a new code.' });
+    }
+
+    if (otp.attempts >= MAX_OTP_ATTEMPTS) {
+      return res.status(400).json({ error: 'Too many attempts. Please request a new code.' });
+    }
+
+    if (otp.code !== code) {
+      await prisma.otpCode.update({
+        where: { id: otp.id },
+        data: { attempts: { increment: 1 } },
+      });
+      const remaining = MAX_OTP_ATTEMPTS - otp.attempts - 1;
+      return res.status(400).json({
+        error: 'Invalid code',
+        attemptsRemaining: remaining,
+      });
+    }
+
+    // OTP is correct
+    await prisma.otpCode.update({
+      where: { id: otp.id },
+      data: { usedAt: new Date() },
+    });
+
+    // Mark email as verified
+    if (otp.userId) {
+      await prisma.user.update({
+        where: { id: otp.userId },
+        data: { emailVerified: true },
+      });
+    } else if (otp.businessId) {
+      // Businesses don't have emailVerified field, but OTP is consumed
+    }
+
+    res.json({ message: 'Email verified successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /resend-otp ───────────────────────────────────
+
+router.post('/resend-otp', otpResendLimiter, async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Find user or business
+    const user = await prisma.user.findUnique({ where: { email } });
+    const business = !user ? await prisma.business.findUnique({ where: { email } }) : null;
+
+    // Generate OTP regardless (don't reveal if account exists)
+    const code = generateOtp();
+    await prisma.otpCode.create({
+      data: {
+        email,
+        code,
+        expiresAt: getOtpExpiry(),
+        userId: user?.id,
+        businessId: business?.id,
+      },
+    });
+
+    console.log(`[OTP] ${email}: ${code}`);
+
+    // Always return success
+    res.json({ message: 'If an account exists with that email, a verification code has been sent.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /refresh ───────────────────────────────────────
+
+router.post('/refresh', async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'Refresh token is required' });
+    }
+
+    let payload;
+    try {
+      payload = verifyRefreshToken(refreshToken);
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid or expired refresh token' });
+    }
+
+    // Verify account still exists and is active
+    if (payload.type === 'user') {
+      const user = await prisma.user.findUnique({ where: { id: payload.id } });
+      if (!user || user.status === 'SUSPENDED') {
+        return res.status(401).json({ error: 'Account not found or suspended' });
+      }
+      const accessToken = signAccessToken({ id: user.id, email: user.email, type: 'user', role: user.role });
+      return res.json({ accessToken });
+    }
+
+    if (payload.type === 'business') {
+      const business = await prisma.business.findUnique({ where: { id: payload.id } });
+      if (!business || business.status === 'SUSPENDED') {
+        return res.status(401).json({ error: 'Account not found or suspended' });
+      }
+      const accessToken = signAccessToken({ id: business.id, email: business.email, type: 'business' });
+      return res.json({ accessToken });
+    }
+
+    res.status(401).json({ error: 'Invalid token type' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /forgot-password ──────────────────────────────
+
+router.post('/forgot-password', otpResendLimiter, async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    const business = !user ? await prisma.business.findUnique({ where: { email } }) : null;
+
+    const code = generateOtp();
+    await prisma.otpCode.create({
+      data: {
+        email,
+        code,
+        expiresAt: getOtpExpiry(),
+        userId: user?.id,
+        businessId: business?.id,
+      },
+    });
+
+    console.log(`[OTP-RESET] ${email}: ${code}`);
+
+    res.json({ message: 'If an account exists with that email, a reset code has been sent.' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /reset-password ───────────────────────────────
+
+router.post('/reset-password', async (req, res, next) => {
+  try {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) {
+      return res.status(400).json({ error: 'Email, code, and new password are required' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    // Validate OTP
+    const otp = await prisma.otpCode.findFirst({
+      where: {
+        email,
+        usedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!otp) {
+      return res.status(400).json({ error: 'No valid reset code found' });
+    }
+
+    if (otp.attempts >= MAX_OTP_ATTEMPTS) {
+      return res.status(400).json({ error: 'Too many attempts. Please request a new code.' });
+    }
+
+    if (otp.code !== code) {
+      await prisma.otpCode.update({
+        where: { id: otp.id },
+        data: { attempts: { increment: 1 } },
+      });
+      return res.status(400).json({ error: 'Invalid code' });
+    }
+
+    // Mark OTP as used
+    await prisma.otpCode.update({
+      where: { id: otp.id },
+      data: { usedAt: new Date() },
+    });
+
+    // Hash new password and update
+    const passwordHash = await hashPassword(newPassword);
+
+    if (otp.userId) {
+      await prisma.user.update({
+        where: { id: otp.userId },
+        data: { passwordHash },
+      });
+    } else if (otp.businessId) {
+      await prisma.business.update({
+        where: { id: otp.businessId },
+        data: { passwordHash },
+      });
+    } else {
+      return res.status(400).json({ error: 'No account associated with this code' });
+    }
+
+    res.json({ message: 'Password reset successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
+module.exports = router;
