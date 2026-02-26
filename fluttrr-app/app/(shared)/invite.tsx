@@ -18,7 +18,7 @@ export default function InviteScreen() {
   const { eventId, eventTitle } = useLocalSearchParams<{ eventId?: string; eventTitle?: string }>();
   const { user } = useAuthStore();
 
-  const inviteCode = `${(user?.username || 'FLUTTRR').toUpperCase()}-KC-2025`;
+  const inviteCode = `${(user?.username || 'FLUTTRR').toUpperCase()}-KC-${new Date().getFullYear()}`;
   const shareMessage = eventId
     ? `Join me at "${eventTitle}" on Fluttrr! fluttrr://event/${eventId}`
     : `Join me on Fluttrr - discover KC events & meet new people! Use code: ${inviteCode}`;

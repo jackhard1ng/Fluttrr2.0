@@ -10,6 +10,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -86,8 +87,8 @@ export default function MomentDetailScreen() {
       await momentsApi.comment(id, commentText.trim());
       setCommentText('');
       fetchMoment();
-    } catch {
-      // Comment failed silently - user can retry
+    } catch (err) {
+      Alert.alert('Error', extractErrorMessage(err));
     }
     setCommenting(false);
   };

@@ -55,12 +55,14 @@ export default function ChatRoomScreen() {
       if (!chatId) return;
       try {
         const { data } = await chatsApi.getMessages(chatId, { page: pageNum, limit: 50 });
-        // Messages come newest-first from API; we reverse for display
-        const sorted = [...data.messages].reverse();
+        // Messages come oldest-first from API (asc order)
+        // For inverted FlatList, we reverse so newest is at index 0
+        const reversed = [...data.messages].reverse();
         if (append) {
-          setMessages((prev) => [...sorted, ...prev]);
+          // Append older messages at the end (bottom of inverted list = top of screen)
+          setMessages((prev) => [...prev, ...reversed]);
         } else {
-          setMessages(sorted);
+          setMessages(reversed);
         }
         setPage(pageNum);
         setTotalPages(data.totalPages);
@@ -92,7 +94,7 @@ export default function ChatRoomScreen() {
 
         socket.on('new_message', (message: MessageWithSender) => {
           if (message.chatId === chatId && mounted) {
-            setMessages((prev) => [...prev, message]);
+            setMessages((prev) => [message, ...prev]);
             chatsApi.markRead(chatId).catch(() => {});
           }
         });
@@ -143,7 +145,7 @@ export default function ChatRoomScreen() {
       // add it immediately for local UX if socket is slow
       setMessages((prev) => {
         if (prev.find((m) => m.id === data.id)) return prev;
-        return [...prev, data];
+        return [data, ...prev];
       });
     } catch (err) {
       Alert.alert('Send failed', extractErrorMessage(err));
@@ -186,8 +188,9 @@ export default function ChatRoomScreen() {
 
   const renderMessage = ({ item, index }: { item: MessageWithSender; index: number }) => {
     const mine = isMyMessage(item);
-    const prevMsg = index > 0 ? messages[index - 1] : null;
-    const showSender = !mine && (!prevMsg || prevMsg.senderId !== item.senderId);
+    // In inverted list, next visual message is index+1 (which is actually the previous in time)
+    const nextMsg = index < messages.length - 1 ? messages[index + 1] : null;
+    const showSender = !mine && (!nextMsg || nextMsg.senderId !== item.senderId);
 
     return (
       <View style={[styles.msgWrapper, mine ? styles.msgRight : styles.msgLeft]}>
@@ -245,17 +248,14 @@ export default function ChatRoomScreen() {
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
             contentContainerStyle={styles.messagesList}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: false })
-            }
-            ListHeaderComponent={
+            ListFooterComponent={
               loadingMore ? (
                 <ActivityIndicator size="small" color={Colors.blue} style={{ marginVertical: 10 }} />
               ) : null
             }
-            inverted={false}
-            onStartReached={onEndReached}
-            onStartReachedThreshold={0.2}
+            inverted
+            onEndReached={onEndReached}
+            onEndReachedThreshold={0.2}
           />
         )}
 

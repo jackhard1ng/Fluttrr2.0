@@ -1,5 +1,14 @@
 require('dotenv').config();
 
+// ─── Startup Validation ──────────────────────────────────
+
+const REQUIRED_ENV = ['DATABASE_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
+const missing = REQUIRED_ENV.filter((key) => !process.env[key]);
+if (missing.length > 0) {
+  console.error(`FATAL: Missing required environment variables: ${missing.join(', ')}`);
+  process.exit(1);
+}
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -35,6 +44,7 @@ app.use(
       callback(new Error('Not allowed by CORS'));
     },
     credentials: true,
+    maxAge: 86400, // Cache preflight responses for 24 hours
   })
 );
 

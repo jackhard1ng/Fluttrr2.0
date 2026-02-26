@@ -118,6 +118,10 @@ router.get('/status', requireBusiness, async (req, res, next) => {
 
 router.post('/webhook', async (req, res) => {
   if (!isConfigured) return res.status(503).send('Not configured');
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    console.error('[STRIPE] STRIPE_WEBHOOK_SECRET not configured');
+    return res.status(503).send('Webhook not configured');
+  }
 
   const sig = req.headers['stripe-signature'];
   let event;

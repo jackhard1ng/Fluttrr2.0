@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import client from '@/api/client';
+import { secureStorage } from '@/services/storage';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -61,7 +62,9 @@ export async function registerAndSavePushToken(): Promise<void> {
   const token = await registerForPushNotifications();
   if (token) {
     try {
-      await client.put('/api/users/me', { fcmToken: token });
+      const accountType = await secureStorage.getAccountType();
+      const endpoint = accountType === 'business' ? '/api/business/profile' : '/api/users/me';
+      await client.put(endpoint, { fcmToken: token });
     } catch {
       // Silently fail - token will be registered next time
     }

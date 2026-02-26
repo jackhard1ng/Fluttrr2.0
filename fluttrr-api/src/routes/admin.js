@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const prisma = require('../utils/prisma');
 const { requireAdmin } = require('../middleware/auth');
 const { adminMessageSchema, validate } = require('../validators/schemas');
@@ -8,6 +9,15 @@ const router = express.Router();
 
 // All routes require admin
 router.use(requireAdmin);
+
+// Rate limit admin write operations (PUT/POST/DELETE)
+const adminWriteLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  message: { error: 'Too many admin operations, please slow down' },
+  skip: (req) => req.method === 'GET',
+});
+router.use(adminWriteLimiter);
 
 // ─── GET /stats ──────────────────────────────────────────
 

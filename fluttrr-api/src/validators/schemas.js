@@ -42,7 +42,7 @@ const loginSchema = z.object({
 
 const verifyOtpSchema = z.object({
   email: z.string().email('Invalid email address'),
-  code: z.string().length(6, 'OTP must be exactly 6 digits'),
+  code: z.string().length(6, 'OTP must be exactly 6 digits').regex(/^\d{6}$/, 'OTP must be exactly 6 digits'),
 });
 
 // ─── Event Schemas ───────────────────────────────────────
