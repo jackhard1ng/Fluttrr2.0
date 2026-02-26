@@ -220,6 +220,23 @@ router.post('/:id/messages', requireAuth, messageLimiter, validate(sendMessageSc
       sendPushNotifications(pushMessages).catch(() => {});
     }
 
+    // Create in-app notifications for user members (not businesses, not sender)
+    const userRecipients = chatMembers
+      .filter((m) => m.userId && m.userId !== getMemberId(req))
+      .map((m) => m.userId);
+
+    if (userRecipients.length > 0) {
+      prisma.notification.createMany({
+        data: userRecipients.map((userId) => ({
+          userId,
+          type: 'CHAT_MESSAGE',
+          title: senderName,
+          body: req.body.content.substring(0, 100),
+          data: { chatId: req.params.id },
+        })),
+      }).catch(() => {});
+    }
+
     res.status(201).json(messageWithSender);
   } catch (err) {
     next(err);

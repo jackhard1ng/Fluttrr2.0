@@ -2,6 +2,7 @@ const express = require('express');
 const prisma = require('../utils/prisma');
 const { requireAdmin } = require('../middleware/auth');
 const { adminMessageSchema, validate } = require('../validators/schemas');
+const { notifyBusiness, notifyUser, sendPushNotifications } = require('../utils/pushNotifications');
 
 const router = express.Router();
 
@@ -100,9 +101,12 @@ router.put('/businesses/:id/verify', async (req, res, next) => {
       data: { verified: true, status: 'ACTIVE' },
     });
 
-    // Create notification for business
-    // (Businesses don't have userId, so we log it; push notification via FCM later)
-    console.log(`[ADMIN] Business verified: ${business.businessName} (${business.id})`);
+    // Push notification to business
+    notifyBusiness(prisma, business.id, {
+      title: '🎉 Business verified!',
+      body: `${business.businessName} has been verified. You can now create events!`,
+      data: { type: 'BUSINESS_VERIFIED' },
+    }).catch(() => {});
 
     res.json({ message: 'Business verified', business: { id: business.id, businessName: business.businessName, verified: true, status: 'ACTIVE' } });
   } catch (err) {
@@ -128,10 +132,17 @@ router.put('/businesses/:id/unverify', async (req, res, next) => {
 
 router.put('/businesses/:id/suspend', async (req, res, next) => {
   try {
-    await prisma.business.update({
+    const business = await prisma.business.update({
       where: { id: req.params.id },
       data: { status: 'SUSPENDED', verified: false },
     });
+
+    notifyBusiness(prisma, business.id, {
+      title: 'Account suspended',
+      body: `${business.businessName} has been suspended. Contact support for more info.`,
+      data: { type: 'BUSINESS_SUSPENDED' },
+    }).catch(() => {});
+
     res.json({ message: 'Business suspended' });
   } catch (err) {
     next(err);
@@ -293,7 +304,7 @@ router.post('/messages', validate(adminMessageSchema), async (req, res, next) =>
       },
     });
 
-    // Create notifications
+    // Create in-app notifications + push
     if (targetType === 'user' && targetId) {
       await prisma.notification.create({
         data: {
@@ -304,8 +315,19 @@ router.post('/messages', validate(adminMessageSchema), async (req, res, next) =>
           data: { adminMessageId: adminMsg.id },
         },
       });
+      notifyUser(prisma, targetId, {
+        title: subject,
+        body,
+        data: { type: 'ADMIN_MESSAGE', adminMessageId: adminMsg.id },
+      }).catch(() => {});
+    } else if (targetType === 'business' && targetId) {
+      notifyBusiness(prisma, targetId, {
+        title: subject,
+        body,
+        data: { type: 'ADMIN_MESSAGE', adminMessageId: adminMsg.id },
+      }).catch(() => {});
     } else if (targetType === 'all_users') {
-      const users = await prisma.user.findMany({ select: { id: true } });
+      const users = await prisma.user.findMany({ select: { id: true, fcmToken: true } });
       await prisma.notification.createMany({
         data: users.map((u) => ({
           userId: u.id,
@@ -315,8 +337,14 @@ router.post('/messages', validate(adminMessageSchema), async (req, res, next) =>
           data: { adminMessageId: adminMsg.id },
         })),
       });
+      // Push to all users with tokens
+      const pushMessages = users
+        .filter((u) => u.fcmToken)
+        .map((u) => ({ to: u.fcmToken, title: subject, body, data: { type: 'ADMIN_MESSAGE' } }));
+      if (pushMessages.length > 0) {
+        sendPushNotifications(pushMessages).catch(() => {});
+      }
     }
-    // Note: business notifications would be handled via FCM push since businesses don't have userId in Notification table
 
     res.status(201).json({ message: 'Admin message sent', id: adminMsg.id });
   } catch (err) {

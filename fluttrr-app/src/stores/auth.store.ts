@@ -4,6 +4,7 @@ import { usersApi } from '@/api/users';
 import { businessApi } from '@/api/business';
 import { secureStorage } from '@/services/storage';
 import { extractErrorMessage } from '@/utils/error';
+import { registerAndSavePushToken } from '@/services/notifications';
 import type { User, Business } from '@/types/models';
 import type { RegisterUserData, RegisterBusinessData, LoginData } from '@/types/api';
 import { UserRole } from '@/types/enums';
@@ -81,6 +82,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // If refresh fails (e.g. token fully expired), logout
         get().logout();
       });
+
+      // Re-register push token on app relaunch
+      registerAndSavePushToken().catch(() => {});
     } catch {
       set({ isLoading: false });
     }
@@ -116,6 +120,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         pendingOtpEmail: null,
       });
     }
+
+    // Register push token in background after login
+    registerAndSavePushToken().catch(() => {});
   },
 
   register: async (data: RegisterUserData) => {

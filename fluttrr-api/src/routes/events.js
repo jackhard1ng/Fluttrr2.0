@@ -311,6 +311,30 @@ router.delete('/:id', requireVerifiedBusiness, async (req, res, next) => {
       return res.status(403).json({ error: 'You can only delete your own events' });
     }
 
+    // Notify attendees before deletion
+    const attendees = await prisma.eventAttendee.findMany({
+      where: { eventId: event.id, status: 'JOINED' },
+      include: { user: { select: { id: true, fcmToken: true } } },
+    });
+
+    if (attendees.length > 0) {
+      await prisma.notification.createMany({
+        data: attendees.map((a) => ({
+          userId: a.user.id,
+          type: 'EVENT_CANCELLED',
+          title: `${event.emoji || '😔'} Event cancelled`,
+          body: `${event.title} has been cancelled by the organizer`,
+          data: { eventId: event.id },
+        })),
+      });
+
+      notifyEventAttendees(prisma, event.id, {
+        title: `${event.emoji || '😔'} Event cancelled`,
+        body: `${event.title} has been cancelled`,
+        data: { type: 'EVENT_CANCELLED' },
+      }).catch(() => {});
+    }
+
     await prisma.event.delete({ where: { id: req.params.id } });
     res.json({ message: 'Event deleted' });
   } catch (err) {

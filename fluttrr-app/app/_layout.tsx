@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { View, StyleSheet } from 'react-native';
@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@/stores/auth.store';
 import { Colors } from '@/constants/colors';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
+import { addNotificationResponseListener } from '@/services/notifications';
 
 const ONBOARDING_KEY = '@fluttrr_onboarded';
 
@@ -24,6 +25,39 @@ export default function RootLayout() {
       setOnboardingChecked(true);
     });
   }, [hydrate]);
+
+  // Handle notification taps → route to correct screen
+  const routerReady = useRef(false);
+  useEffect(() => {
+    routerReady.current = true;
+    const sub = addNotificationResponseListener((response) => {
+      if (!routerReady.current) return;
+      const data = response.notification.request.content.data as Record<string, string> | undefined;
+      if (!data?.type) return;
+
+      switch (data.type) {
+        case 'EVENT_REMINDER':
+        case 'EVENT_JOINED':
+        case 'EVENT_CANCELLED':
+          if (data.eventId) router.push(`/(shared)/event/${data.eventId}` as any);
+          break;
+        case 'CHAT_MESSAGE':
+          if (data.chatId) router.push(`/(user)/(chats)/${data.chatId}` as any);
+          break;
+        case 'MOMENT_LIKE':
+        case 'MOMENT_COMMENT':
+          if (data.momentId) router.push(`/(shared)/moment/${data.momentId}` as any);
+          break;
+        case 'BUSINESS_VERIFIED':
+        case 'BUSINESS_SUSPENDED':
+          router.push('/(business)/(dashboard)' as any);
+          break;
+        default:
+          router.push('/(user)/(home)/notifications' as any);
+      }
+    });
+    return () => { routerReady.current = false; sub.remove(); };
+  }, [router]);
 
   // Auth gate: redirect based on auth state
   useEffect(() => {
