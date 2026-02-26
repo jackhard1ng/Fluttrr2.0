@@ -1,5 +1,5 @@
 import client from './client';
-import type { Business, Event } from '@/types/models';
+import type { Business, Event, Review } from '@/types/models';
 import type { CreateEventData } from '@/types/api';
 
 interface BusinessProfileResponse extends Business {
@@ -29,7 +29,34 @@ interface BusinessEventsResponse {
   totalPages: number;
 }
 
-export type { BusinessProfileResponse, BusinessStatsResponse, BusinessEventsResponse, BusinessEventItem };
+interface PublicBusinessResponse {
+  id: string;
+  businessName: string;
+  description: string | null;
+  address: string;
+  city: string | null;
+  lat: number | null;
+  lng: number | null;
+  phone: string | null;
+  website: string | null;
+  logo: string | null;
+  photos: string[];
+  verified: boolean;
+  createdAt: string;
+  events: (Event & { attendeeCount: number })[];
+  reviews: (Review & { user: { id: string; username: string; displayName: string; profilePhoto: string } })[];
+  avgRating: number | null;
+  reviewCount: number;
+}
+
+interface PublicReviewsResponse {
+  reviews: (Review & { user: { id: string; username: string; displayName: string; profilePhoto: string } })[];
+  total: number;
+  page: number;
+  totalPages: number;
+}
+
+export type { BusinessProfileResponse, BusinessStatsResponse, BusinessEventsResponse, BusinessEventItem, PublicBusinessResponse, PublicReviewsResponse };
 
 export const businessApi = {
   getProfile() {
@@ -66,5 +93,15 @@ export const businessApi = {
 
   deleteEvent(id: string) {
     return client.delete<{ message: string }>(`/api/events/${id}`);
+  },
+};
+
+export const businessPublicApi = {
+  getById(id: string) {
+    return client.get<PublicBusinessResponse>(`/api/businesses/${id}`);
+  },
+
+  getReviews(id: string, params?: { page?: number; limit?: number }) {
+    return client.get<PublicReviewsResponse>(`/api/businesses/${id}/reviews`, { params });
   },
 };

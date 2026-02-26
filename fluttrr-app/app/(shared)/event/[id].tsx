@@ -159,7 +159,11 @@ export default function EventDetailScreen() {
             {event.recurring && <Badge label="🔁 Recurring" color={Colors.purple} />}
           </View>
           <Text style={styles.heroTitle}>{event.title}</Text>
-          <Text style={styles.heroVenue}>{event.business?.businessName}</Text>
+          <TouchableOpacity
+            onPress={() => event.business?.id && router.push({ pathname: '/(shared)/business/[id]', params: { id: event.business.id } })}
+          >
+            <Text style={styles.heroVenue}>{event.business?.businessName}</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Info rows */}

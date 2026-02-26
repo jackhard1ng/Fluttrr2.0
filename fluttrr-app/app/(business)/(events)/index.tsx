@@ -15,7 +15,9 @@ import { Chip } from '@/components/ui/Chip';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { ErrorView } from '@/components/ui/ErrorView';
 import { businessApi, type BusinessEventItem } from '@/api/business';
+import { extractErrorMessage } from '@/utils/error';
 import { getEventEmoji, getEventColor, CATEGORY_META } from '@/constants/categories';
 import { formatEventDate, formatTimeRange } from '@/utils/date';
 import type { EventCategory } from '@/types/enums';
@@ -28,12 +30,16 @@ export default function BusinessEventsScreen() {
   const [filter, setFilter] = useState<FilterType>('all');
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState('');
 
   const fetchEvents = useCallback(async () => {
     try {
+      setError('');
       const { data } = await businessApi.getEvents({ filter, limit: 50 });
       setEvents(data.events);
-    } catch {}
+    } catch (err) {
+      setError(extractErrorMessage(err));
+    }
   }, [filter]);
 
   useEffect(() => {
@@ -72,6 +78,12 @@ export default function BusinessEventsScreen() {
               <Badge label={`${item.views} views`} color={Colors.textSecondary} />
             </View>
           </View>
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => router.push({ pathname: '/(business)/(events)/[id]', params: { id: item.id } })}
+          >
+            <Text style={styles.editBtnText}>Edit</Text>
+          </TouchableOpacity>
         </View>
       </Card>
     );
@@ -107,6 +119,8 @@ export default function BusinessEventsScreen() {
         ListEmptyComponent={
           loading ? (
             <ActivityIndicator size="large" color={Colors.blue} style={{ marginTop: 40 }} />
+          ) : error ? (
+            <ErrorView message={error} onRetry={fetchEvents} />
           ) : (
             <EmptyState
               emoji="🎉"
@@ -139,4 +153,6 @@ const styles = StyleSheet.create({
   eventTitle: { fontSize: 15, fontWeight: '600', color: Colors.text },
   eventMeta: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   eventBadges: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
+  editBtn: { backgroundColor: Colors.blue + '20', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignSelf: 'center' },
+  editBtnText: { fontSize: 12, fontWeight: '600', color: Colors.blue },
 });

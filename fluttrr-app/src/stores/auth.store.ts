@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { authApi } from '@/api/auth';
 import { usersApi } from '@/api/users';
+import { businessApi } from '@/api/business';
 import { secureStorage } from '@/services/storage';
 import { extractErrorMessage } from '@/utils/error';
 import type { User, Business } from '@/types/models';
@@ -209,8 +210,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { data } = await usersApi.getMe();
       await secureStorage.setUserData(JSON.stringify(data));
       set({ user: data, isAdmin: data.role === UserRole.ADMIN });
+    } else if (accountType === 'business') {
+      const { data } = await businessApi.getProfile();
+      await secureStorage.setUserData(JSON.stringify(data));
+      set({ business: data });
     }
-    // Business profile refresh will be added when businesses API is created
   },
 
   setUser: (user: User) => set({ user }),

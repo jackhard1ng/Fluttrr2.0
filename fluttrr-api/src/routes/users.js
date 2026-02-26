@@ -96,6 +96,28 @@ router.get('/me/events', requireUser, async (req, res, next) => {
   }
 });
 
+// ─── GET /me/blocked ────────────────────────────────────
+
+router.get('/me/blocked', requireUser, async (req, res, next) => {
+  try {
+    const blocked = await prisma.blockedUser.findMany({
+      where: { blockerId: req.user.id },
+      include: {
+        blocked: {
+          select: {
+            id: true, displayName: true, username: true, profilePhoto: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    res.json({ users: blocked.map((b) => ({ ...b.blocked, blockedAt: b.createdAt })) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ─── GET /me/notifications ───────────────────────────────
 
 router.get('/me/notifications', requireUser, async (req, res, next) => {

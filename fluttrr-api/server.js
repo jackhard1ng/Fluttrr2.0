@@ -165,6 +165,11 @@ app.use((err, req, res, next) => {
   });
 });
 
+// ─── Cron Jobs ───────────────────────────────────────────
+
+const { setupCronJobs } = require('./src/cron');
+setupCronJobs();
+
 // ─── Start Server ────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
