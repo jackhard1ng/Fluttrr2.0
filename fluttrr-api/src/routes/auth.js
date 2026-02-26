@@ -11,6 +11,7 @@ const {
   verifyOtpSchema,
   validate,
 } = require('../validators/schemas');
+const { sendOtpEmail, sendPasswordResetEmail } = require('../utils/email');
 
 const router = express.Router();
 
@@ -101,8 +102,7 @@ router.post('/register', registerLimiter, validate(registerUserSchema), async (r
       },
     });
 
-    // TODO: Send OTP via Resend email
-    console.log(`[OTP] ${email}: ${code}`);
+    await sendOtpEmail(email, code);
 
     const tokenPayload = { id: user.id, email: user.email, type: 'user', role: user.role };
     const accessToken = signAccessToken(tokenPayload);
@@ -157,7 +157,7 @@ router.post('/register/business', registerLimiter, validate(registerBusinessSche
       },
     });
 
-    console.log(`[OTP] ${email}: ${code}`);
+    await sendOtpEmail(email, code);
 
     const tokenPayload = { id: business.id, email: business.email, type: 'business' };
     const accessToken = signAccessToken(tokenPayload);
@@ -333,7 +333,7 @@ router.post('/resend-otp', otpResendLimiter, async (req, res, next) => {
       },
     });
 
-    console.log(`[OTP] ${email}: ${code}`);
+    await sendOtpEmail(email, code);
 
     // Always return success
     res.json({ message: 'If an account exists with that email, a verification code has been sent.' });
@@ -406,7 +406,7 @@ router.post('/forgot-password', otpResendLimiter, async (req, res, next) => {
       },
     });
 
-    console.log(`[OTP-RESET] ${email}: ${code}`);
+    await sendPasswordResetEmail(email, code);
 
     res.json({ message: 'If an account exists with that email, a reset code has been sent.' });
   } catch (err) {
