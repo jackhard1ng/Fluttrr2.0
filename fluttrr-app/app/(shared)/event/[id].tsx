@@ -138,6 +138,7 @@ export default function EventDetailScreen() {
         </Text>
         <TouchableOpacity
           onPress={() => {
+            if (!event?.title) return;
             Share.share({
               message: `Check out "${event.title}" on Fluttrr! fluttrr://event/${id}`,
               url: `https://fluttrr.com/event/${id}`,
@@ -158,9 +159,7 @@ export default function EventDetailScreen() {
             {event.recurring && <Badge label="🔁 Recurring" color={Colors.purple} />}
           </View>
           <Text style={styles.heroTitle}>{event.title}</Text>
-          <TouchableOpacity onPress={() => {}}>
-            <Text style={styles.heroVenue}>{event.business?.businessName}</Text>
-          </TouchableOpacity>
+          <Text style={styles.heroVenue}>{event.business?.businessName}</Text>
         </View>
 
         {/* Info rows */}

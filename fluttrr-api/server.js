@@ -9,8 +9,15 @@ const http = require('http');
 const { Server } = require('socket.io');
 const { verifyToken } = require('./src/utils/jwt');
 
+const path = require('path');
+
 const app = express();
 const server = http.createServer(app);
+
+// ─── View Engine (EJS) ─────────────────────────────────
+
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
 
 // ─── CORS ────────────────────────────────────────────────
 
@@ -128,8 +135,13 @@ app.use('/api/moments', require('./src/routes/moments'));
 app.use('/api/uploads', require('./src/routes/uploads'));
 app.use('/api/web', require('./src/routes/web'));
 
-// Serve uploaded files statically
-app.use('/uploads', express.static(require('path').join(__dirname, 'uploads')));
+// Serve uploaded files and public directory statically
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ─── Web Pages (SEO) ───────────────────────────────────
+
+app.use('/', require('./src/routes/pages'));
 
 // ─── Health Check ────────────────────────────────────────
 

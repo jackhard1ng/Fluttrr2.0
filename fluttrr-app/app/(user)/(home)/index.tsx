@@ -8,6 +8,9 @@ import {
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
+  Alert,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,18 +37,32 @@ export default function HomeScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
 
-  // Admin long-press (5-second hold on logo)
+  // Admin long-press (5-second hold on logo) + passcode
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isAdmin = useAuthStore((s) => s.isAdmin);
+  const [showAdminPin, setShowAdminPin] = useState(false);
+  const [adminPin, setAdminPin] = useState('');
 
   const startAdminPress = () => {
     if (!isAdmin) return;
     pressTimer.current = setTimeout(() => {
-      router.push('/(admin)/(dashboard)');
+      setAdminPin('');
+      setShowAdminPin(true);
     }, 5000);
   };
   const endAdminPress = () => {
     if (pressTimer.current) clearTimeout(pressTimer.current);
+  };
+
+  const handleAdminPinSubmit = () => {
+    if (adminPin === '2417') {
+      setShowAdminPin(false);
+      setAdminPin('');
+      router.push('/(admin)/(dashboard)');
+    } else {
+      Alert.alert('Incorrect', 'Wrong passcode.');
+      setAdminPin('');
+    }
   };
 
   const fetchFeatured = useCallback(async () => {
@@ -192,6 +209,42 @@ export default function HomeScreen() {
         onEndReached={onEndReached}
         onEndReachedThreshold={0.3}
       />
+
+      {/* Admin PIN modal */}
+      <Modal visible={showAdminPin} transparent animationType="fade">
+        <View style={styles.pinOverlay}>
+          <View style={styles.pinCard}>
+            <Text style={styles.pinTitle}>🔒 Admin Access</Text>
+            <Text style={styles.pinSubtitle}>Enter the 4-digit passcode</Text>
+            <TextInput
+              style={styles.pinInput}
+              value={adminPin}
+              onChangeText={(t) => setAdminPin(t.replace(/[^0-9]/g, '').slice(0, 4))}
+              keyboardType="number-pad"
+              maxLength={4}
+              secureTextEntry
+              autoFocus
+              placeholder="••••"
+              placeholderTextColor={Colors.textSecondary + '66'}
+            />
+            <View style={styles.pinActions}>
+              <TouchableOpacity
+                onPress={() => { setShowAdminPin(false); setAdminPin(''); }}
+                style={styles.pinCancelBtn}
+              >
+                <Text style={styles.pinCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleAdminPinSubmit}
+                style={[styles.pinSubmitBtn, adminPin.length < 4 && { opacity: 0.5 }]}
+                disabled={adminPin.length < 4}
+              >
+                <Text style={styles.pinSubmitText}>Enter</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -256,4 +309,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     gap: 10,
   },
+  // Admin PIN modal
+  pinOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 24,
+    width: 280,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  pinTitle: { fontSize: 18, fontWeight: '700', color: Colors.text, marginBottom: 4 },
+  pinSubtitle: { fontSize: 13, color: Colors.textSecondary, marginBottom: 20 },
+  pinInput: {
+    width: '100%',
+    backgroundColor: Colors.dark,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    fontSize: 24,
+    color: Colors.text,
+    textAlign: 'center',
+    letterSpacing: 12,
+    marginBottom: 20,
+  },
+  pinActions: { flexDirection: 'row', gap: 12, width: '100%' },
+  pinCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.dark,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  pinCancelText: { color: Colors.textSecondary, fontWeight: '600', fontSize: 14 },
+  pinSubmitBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: Colors.blue,
+    alignItems: 'center',
+  },
+  pinSubmitText: { color: '#fff', fontWeight: '600', fontSize: 14 },
 });

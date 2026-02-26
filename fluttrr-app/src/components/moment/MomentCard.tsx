@@ -21,18 +21,23 @@ export function MomentCard({ moment, onComment, onDelete }: MomentCardProps) {
   const isOwner = user?.id === moment.user.id;
 
   const handleLike = async () => {
+    const prevLiked = liked;
+    const prevCount = likeCount;
+    // Optimistic update
+    setLiked(!liked);
+    setLikeCount(liked ? likeCount - 1 : likeCount + 1);
     try {
-      if (liked) {
+      if (prevLiked) {
         const { data } = await momentsApi.unlike(moment.id);
-        setLiked(false);
         setLikeCount(data.likeCount);
       } else {
         const { data } = await momentsApi.like(moment.id);
-        setLiked(true);
         setLikeCount(data.likeCount);
       }
     } catch {
-      // Silently fail
+      // Rollback on failure
+      setLiked(prevLiked);
+      setLikeCount(prevCount);
     }
   };
 
@@ -46,7 +51,9 @@ export function MomentCard({ moment, onComment, onDelete }: MomentCardProps) {
           try {
             await momentsApi.delete(moment.id);
             onDelete?.();
-          } catch {}
+          } catch {
+            Alert.alert('Error', 'Could not delete moment. Try again.');
+          }
         },
       },
     ]);

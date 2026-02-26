@@ -1,0 +1,93 @@
+<%- include('header') %>
+
+<div class="container" style="padding-top: 32px; padding-bottom: 40px;">
+  <a href="/events" style="font-size: 14px; color: #8B949E;">&larr; Back to all events</a>
+
+  <!-- Hero -->
+  <div style="text-align: center; padding: 40px 0; background: <%= event.color || '#30363D' %>15; border-radius: 16px; margin-top: 16px;">
+    <div style="font-size: 64px; margin-bottom: 12px;"><%= event.emoji || '✨' %></div>
+    <div style="display: flex; gap: 8px; justify-content: center; margin-bottom: 12px; flex-wrap: wrap;">
+      <span class="badge" style="background: <%= event.color || '#30363D' %>;"><%= categoryLabels[event.category] || event.category %></span>
+    </div>
+    <h1 style="font-size: 28px; font-weight: 700; margin-bottom: 6px;"><%= event.title %></h1>
+    <p style="font-size: 16px; color: #1E90FF; font-weight: 600;"><%= event.business?.businessName %></p>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 1fr 340px; gap: 24px; margin-top: 24px;">
+    <!-- Left column -->
+    <div>
+      <!-- Info card -->
+      <div class="card" style="margin-bottom: 16px;">
+        <div style="display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #30363D;">
+          <span>📅</span>
+          <div>
+            <p style="font-size: 12px; color: #8B949E;">Date</p>
+            <p style="font-size: 15px; font-weight: 500;"><%= formatDateFull(event.date) %></p>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #30363D;">
+          <span>🕐</span>
+          <div>
+            <p style="font-size: 12px; color: #8B949E;">Time</p>
+            <p style="font-size: 15px; font-weight: 500;"><%= formatTime(event.startTime) %><%= event.endTime ? ' - ' + formatTime(event.endTime) : '' %></p>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #30363D;">
+          <span>📍</span>
+          <div>
+            <p style="font-size: 12px; color: #8B949E;">Location</p>
+            <p style="font-size: 15px; font-weight: 500;"><%= event.area || event.business?.address || 'Kansas City' %></p>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 10px 0;">
+          <span>👥</span>
+          <div>
+            <p style="font-size: 12px; color: #8B949E;">Attendees</p>
+            <p style="font-size: 15px; font-weight: 500;"><%= event.attendeeCount %> going</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <% if (event.description) { %>
+      <div class="card">
+        <h2 style="font-size: 16px; font-weight: 600; margin-bottom: 8px;">About</h2>
+        <p style="font-size: 14px; color: #8B949E; line-height: 1.6; white-space: pre-wrap;"><%= event.description %></p>
+      </div>
+      <% } %>
+    </div>
+
+    <!-- Right column - CTA -->
+    <div>
+      <div class="card" style="position: sticky; top: 24px; text-align: center;">
+        <div style="font-size: 48px; margin-bottom: 12px;"><%= event.emoji || '✨' %></div>
+        <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 4px;"><%= event.title %></h3>
+        <p style="font-size: 14px; color: #8B949E; margin-bottom: 20px;">
+          <%= formatDate(event.date) %> &middot; <%= formatTime(event.startTime) %>
+        </p>
+
+        <a href="fluttrr://event/<%= event.id %>" class="app-cta" style="display: block; text-align: center;">
+          Join Event in App
+        </a>
+
+        <p style="font-size: 12px; color: #8B949E; margin-top: 12px;">
+          Download Fluttrr to join events and chat with attendees
+        </p>
+
+        <div style="display: flex; gap: 8px; justify-content: center; margin-top: 16px;">
+          <span class="badge" style="background: #3FB950;">👥 <%= event.attendeeCount %> going</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  @media (max-width: 768px) {
+    div[style*="grid-template-columns: 1fr 340px"] {
+      grid-template-columns: 1fr !important;
+    }
+  }
+</style>
+
+<%- include('footer') %>
