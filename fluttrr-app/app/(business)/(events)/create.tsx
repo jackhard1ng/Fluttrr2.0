@@ -62,6 +62,21 @@ export default function CreateEventScreen() {
     if (!title.trim()) return Alert.alert('Required', 'Please enter an event title');
     if (!category) return Alert.alert('Required', 'Please select a category');
 
+    // Validate date is not in the past (could be stale if screen was left open)
+    const now = new Date();
+    if (date < new Date(now.getFullYear(), now.getMonth(), now.getDate())) {
+      return Alert.alert('Invalid Date', 'Event date cannot be in the past');
+    }
+
+    // Validate end time is after start time (if set)
+    if (endTime) {
+      const startMins = startTime.getHours() * 60 + startTime.getMinutes();
+      const endMins = endTime.getHours() * 60 + endTime.getMinutes();
+      if (endMins <= startMins) {
+        return Alert.alert('Invalid Time', 'End time must be after start time');
+      }
+    }
+
     setSubmitting(true);
     try {
       const dateStr = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;

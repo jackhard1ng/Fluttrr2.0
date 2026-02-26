@@ -78,9 +78,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
 
       // Background refresh profile for fresh data
-      get().refreshProfile().catch(() => {
-        // If refresh fails (e.g. token fully expired), logout
-        get().logout();
+      get().refreshProfile().catch((err) => {
+        // Only logout on auth errors (401/403), not transient network failures
+        const msg = extractErrorMessage(err);
+        const status = err?.response?.status;
+        if (status === 401 || status === 403) {
+          get().logout();
+        }
+        // For network errors, keep the cached session — user can refresh manually
       });
 
       // Re-register push token on app relaunch
@@ -109,6 +114,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: true,
         accountType: type,
         user,
+        business: null,
         isAdmin: user.role === UserRole.ADMIN,
         pendingOtpEmail: null,
       });
@@ -117,6 +123,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAuthenticated: true,
         accountType: type,
         business,
+        user: null,
+        isAdmin: false,
         pendingOtpEmail: null,
       });
     }

@@ -70,17 +70,27 @@ export default function EditEventScreen() {
         setEmoji(data.emoji || '');
         setStatus(data.status as EventStatus);
 
-        // Parse start time
-        const [sh, sm] = (data.startTime || '12:00').split(':').map(Number);
-        const st = new Date();
-        st.setHours(sh || 0, sm || 0, 0, 0);
-        setStartTime(st);
+        // Parse start time (handles both "19:00" and "7:00 PM" formats)
+        const parseTime = (timeStr: string): Date => {
+          const d = new Date();
+          if (timeStr.includes('AM') || timeStr.includes('PM')) {
+            const isPM = timeStr.includes('PM');
+            const cleaned = timeStr.replace(/\s*(AM|PM)/i, '');
+            const [h, m] = cleaned.split(':').map(Number);
+            let hours = h || 0;
+            if (isPM && hours !== 12) hours += 12;
+            if (!isPM && hours === 12) hours = 0;
+            d.setHours(hours, m || 0, 0, 0);
+          } else {
+            const [h, m] = timeStr.split(':').map(Number);
+            d.setHours(h || 0, m || 0, 0, 0);
+          }
+          return d;
+        };
 
+        setStartTime(parseTime(data.startTime || '12:00'));
         if (data.endTime) {
-          const [eh, em] = data.endTime.split(':').map(Number);
-          const et = new Date();
-          et.setHours(eh || 0, em || 0, 0, 0);
-          setEndTime(et);
+          setEndTime(parseTime(data.endTime));
         }
       } catch (err) {
         Alert.alert('Error', extractErrorMessage(err));
@@ -103,6 +113,15 @@ export default function EditEventScreen() {
     if (!id) return Alert.alert('Error', 'Invalid event');
     if (!title.trim()) return Alert.alert('Required', 'Please enter an event title');
     if (!category) return Alert.alert('Required', 'Please select a category');
+
+    // Validate end time is after start time (if set)
+    if (endTime) {
+      const startMins = startTime.getHours() * 60 + startTime.getMinutes();
+      const endMins = endTime.getHours() * 60 + endTime.getMinutes();
+      if (endMins <= startMins) {
+        return Alert.alert('Invalid Time', 'End time must be after start time');
+      }
+    }
 
     setSubmitting(true);
     try {

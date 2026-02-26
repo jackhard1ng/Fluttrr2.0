@@ -165,7 +165,9 @@ router.post('/webhook', async (req, res) => {
         if (!businessId) break;
 
         const priceId = subscription.items.data[0]?.price?.id;
-        const tier = subscription.status === 'active' ? tierFromPriceId(priceId) : 'FREE';
+        // Keep paid tier for active and trialing; downgrade for canceled/unpaid
+        const isActiveSub = ['active', 'trialing', 'past_due'].includes(subscription.status);
+        const tier = isActiveSub ? tierFromPriceId(priceId) : 'FREE';
 
         await prisma.business.update({
           where: { id: businessId },
@@ -201,6 +203,18 @@ router.post('/webhook', async (req, res) => {
       case 'invoice.payment_failed': {
         const invoice = event.data.object;
         console.warn(`[STRIPE] Payment failed for customer ${invoice.customer}`);
+
+        // Find the business and notify them
+        const failedCustomer = await stripe.customers.retrieve(invoice.customer);
+        const failedBizId = failedCustomer.metadata?.businessId;
+        if (failedBizId) {
+          // Mark subscription as past_due so frontend can show a warning
+          await prisma.business.update({
+            where: { id: failedBizId },
+            data: { subscriptionTier: 'FREE' },
+          });
+          console.log(`[STRIPE] Downgraded business ${failedBizId} to FREE due to payment failure`);
+        }
         break;
       }
     }

@@ -1,10 +1,12 @@
-import { format, parseISO, isToday, isTomorrow, isThisWeek, isPast, formatDistanceToNow } from 'date-fns';
+import { format, parseISO, isToday, isTomorrow, isFuture, isPast, formatDistanceToNow, differenceInDays } from 'date-fns';
 
 export function formatEventDate(dateStr: string): string {
   const date = parseISO(dateStr);
   if (isToday(date)) return 'Today';
   if (isTomorrow(date)) return 'Tomorrow';
-  if (isThisWeek(date)) return format(date, 'EEEE'); // "Wednesday"
+  // Show weekday name only for upcoming days within the next 6 days
+  const daysAway = differenceInDays(date, new Date());
+  if (daysAway > 0 && daysAway <= 6) return format(date, 'EEEE'); // "Wednesday"
   return format(date, 'MMM d'); // "Mar 15"
 }
 

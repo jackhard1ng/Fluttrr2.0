@@ -54,11 +54,13 @@ export default function BizChatRoomScreen() {
       if (!chatId) return;
       try {
         const { data } = await chatsApi.getMessages(chatId, { page: pageNum, limit: 50 });
-        const sorted = [...data.messages].reverse();
+        // Messages come oldest-first from API; reverse for inverted FlatList (newest at index 0)
+        const reversed = [...data.messages].reverse();
         if (append) {
-          setMessages((prev) => [...sorted, ...prev]);
+          // Append older messages at the end (bottom of inverted list = top of screen)
+          setMessages((prev) => [...prev, ...reversed]);
         } else {
-          setMessages(sorted);
+          setMessages(reversed);
         }
         setPage(pageNum);
         setTotalPages(data.totalPages);
@@ -73,6 +75,9 @@ export default function BizChatRoomScreen() {
   useEffect(() => {
     if (!chatId) return;
     let mounted = true;
+    let handleNewMessage: ((msg: MessageWithSender) => void) | null = null;
+    let handleTypingEvt: ((data: { chatId: string; userId: string }) => void) | null = null;
+    let handleStopTyping: ((data: { chatId: string; userId: string }) => void) | null = null;
 
     const setup = async () => {
       await fetchMessages(1);
@@ -85,26 +90,28 @@ export default function BizChatRoomScreen() {
         const socket = await connectSocket();
         joinChatRoom(chatId);
 
-        socket.on('new_message', (message: MessageWithSender) => {
+        handleNewMessage = (message: MessageWithSender) => {
           if (message.chatId === chatId && mounted) {
-            setMessages((prev) => [...prev, message]);
+            setMessages((prev) => [message, ...prev]);
             chatsApi.markRead(chatId).catch(() => {});
           }
-        });
-
-        socket.on('typing', (data: { chatId: string; userId: string }) => {
+        };
+        handleTypingEvt = (data: { chatId: string; userId: string }) => {
           if (data.chatId === chatId && data.userId !== myId && mounted) {
             setTypingUsers((prev) =>
               prev.includes(data.userId) ? prev : [...prev, data.userId],
             );
           }
-        });
-
-        socket.on('stop_typing', (data: { chatId: string; userId: string }) => {
+        };
+        handleStopTyping = (data: { chatId: string; userId: string }) => {
           if (data.chatId === chatId && mounted) {
             setTypingUsers((prev) => prev.filter((uid) => uid !== data.userId));
           }
-        });
+        };
+
+        socket.on('new_message', handleNewMessage);
+        socket.on('typing', handleTypingEvt);
+        socket.on('stop_typing', handleStopTyping);
       } catch {
         // Socket connection failed — messages still work via REST
       }
@@ -114,12 +121,13 @@ export default function BizChatRoomScreen() {
 
     return () => {
       mounted = false;
+      if (typingTimeout.current) clearTimeout(typingTimeout.current);
       leaveChatRoom(chatId);
       const socket = getSocket();
       if (socket) {
-        socket.off('new_message');
-        socket.off('typing');
-        socket.off('stop_typing');
+        if (handleNewMessage) socket.off('new_message', handleNewMessage);
+        if (handleTypingEvt) socket.off('typing', handleTypingEvt);
+        if (handleStopTyping) socket.off('stop_typing', handleStopTyping);
       }
     };
   }, [chatId, fetchMessages, myId]);
@@ -136,7 +144,7 @@ export default function BizChatRoomScreen() {
       const { data } = await chatsApi.sendMessage(chatId, content);
       setMessages((prev) => {
         if (prev.find((m) => m.id === data.id)) return prev;
-        return [...prev, data];
+        return [data, ...prev];
       });
     } catch (err) {
       Alert.alert('Send failed', extractErrorMessage(err));
@@ -176,8 +184,9 @@ export default function BizChatRoomScreen() {
 
   const renderMessage = ({ item, index }: { item: MessageWithSender; index: number }) => {
     const mine = isMyMessage(item);
-    const prevMsg = index > 0 ? messages[index - 1] : null;
-    const showSender = !mine && (!prevMsg || prevMsg.senderId !== item.senderId);
+    // In inverted list, next visual message (above) is index+1
+    const nextMsg = index < messages.length - 1 ? messages[index + 1] : null;
+    const showSender = !mine && (!nextMsg || nextMsg.senderId !== item.senderId);
 
     return (
       <View style={[styles.msgWrapper, mine ? styles.msgRight : styles.msgLeft]}>
@@ -234,17 +243,14 @@ export default function BizChatRoomScreen() {
             keyExtractor={(item) => item.id}
             renderItem={renderMessage}
             contentContainerStyle={styles.messagesList}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: false })
-            }
-            ListHeaderComponent={
+            ListFooterComponent={
               loadingMore ? (
                 <ActivityIndicator size="small" color={Colors.blue} style={{ marginVertical: 10 }} />
               ) : null
             }
-            inverted={false}
-            onStartReached={onEndReached}
-            onStartReachedThreshold={0.2}
+            inverted
+            onEndReached={onEndReached}
+            onEndReachedThreshold={0.2}
           />
         )}
 

@@ -53,9 +53,13 @@ router.get('/', async (req, res, next) => {
     if (category) where.category = category;
     if (date) {
       const d = new Date(date);
+      const dayStart = new Date(d.setHours(0, 0, 0, 0));
+      const dayEnd = new Date(d.setHours(23, 59, 59, 999));
+      // Only allow filtering future dates; don't let clients list past events
+      const now = new Date();
       where.date = {
-        gte: new Date(d.setHours(0, 0, 0, 0)),
-        lt: new Date(d.setHours(23, 59, 59, 999)),
+        gte: dayStart > now ? dayStart : now,
+        lt: dayEnd,
       };
     }
     if (area) where.area = { contains: area, mode: 'insensitive' };
@@ -77,7 +81,7 @@ router.get('/', async (req, res, next) => {
         where,
         include: {
           business: { select: { id: true, businessName: true, logo: true, address: true } },
-          _count: { select: { attendees: { where: { status: 'JOINED' } } } },
+          attendees: { where: { status: 'JOINED' }, select: { guestCount: true } },
         },
         orderBy,
         skip,
@@ -87,12 +91,12 @@ router.get('/', async (req, res, next) => {
     ]);
 
     let eventsWithSpots = events.map((event) => {
-      const attendeeCount = event._count.attendees;
+      const totalPeople = event.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0);
       const result = {
         ...event,
-        attendeeCount,
-        spotsLeft: event.maxSpots ? event.maxSpots - attendeeCount : null,
-        _count: undefined,
+        attendeeCount: totalPeople,
+        spotsLeft: event.maxSpots ? Math.max(0, event.maxSpots - totalPeople) : null,
+        attendees: undefined,
       };
 
       // Calculate distance if user location provided
@@ -134,18 +138,21 @@ router.get('/featured', async (req, res, next) => {
       },
       include: {
         business: { select: { id: true, businessName: true, logo: true, address: true } },
-        _count: { select: { attendees: { where: { status: 'JOINED' } } } },
+        attendees: { where: { status: 'JOINED' }, select: { guestCount: true } },
       },
       orderBy: [{ views: 'desc' }, { date: 'asc' }],
       take: 10,
     });
 
-    const eventsWithSpots = events.map((event) => ({
-      ...event,
-      attendeeCount: event._count.attendees,
-      spotsLeft: event.maxSpots ? event.maxSpots - event._count.attendees : null,
-      _count: undefined,
-    }));
+    const eventsWithSpots = events.map((event) => {
+      const totalPeople = event.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0);
+      return {
+        ...event,
+        attendeeCount: totalPeople,
+        spotsLeft: event.maxSpots ? Math.max(0, event.maxSpots - totalPeople) : null,
+        attendees: undefined,
+      };
+    });
 
     res.json({ events: eventsWithSpots });
   } catch (err) {
@@ -183,7 +190,7 @@ router.get('/search', async (req, res, next) => {
         where,
         include: {
           business: { select: { id: true, businessName: true, logo: true, address: true } },
-          _count: { select: { attendees: { where: { status: 'JOINED' } } } },
+          attendees: { where: { status: 'JOINED' }, select: { guestCount: true } },
         },
         orderBy: { date: 'asc' },
         skip,
@@ -192,12 +199,15 @@ router.get('/search', async (req, res, next) => {
       prisma.event.count({ where }),
     ]);
 
-    const eventsWithSpots = events.map((event) => ({
-      ...event,
-      attendeeCount: event._count.attendees,
-      spotsLeft: event.maxSpots ? event.maxSpots - event._count.attendees : null,
-      _count: undefined,
-    }));
+    const eventsWithSpots = events.map((event) => {
+      const totalPeople = event.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0);
+      return {
+        ...event,
+        attendeeCount: totalPeople,
+        spotsLeft: event.maxSpots ? Math.max(0, event.maxSpots - totalPeople) : null,
+        attendees: undefined,
+      };
+    });
 
     res.json({
       events: eventsWithSpots,
@@ -240,10 +250,11 @@ router.get('/:id', async (req, res, next) => {
       data: { views: { increment: 1 } },
     }).catch(() => {});
 
+    const totalPeople = event.attendees.reduce((sum, a) => sum + 1 + (a.guestCount || 0), 0);
     res.json({
       ...event,
-      attendeeCount: event.attendees.length,
-      spotsLeft: event.maxSpots ? event.maxSpots - event.attendees.length : null,
+      attendeeCount: totalPeople,
+      spotsLeft: event.maxSpots ? Math.max(0, event.maxSpots - totalPeople) : null,
       chatId: event.chat?.id || null,
     });
   } catch (err) {
@@ -318,6 +329,21 @@ router.put('/:id', requireVerifiedBusiness, validate(updateEventSchema), async (
     // Whitelist safe fields to prevent businessId/status manipulation
     const { title, description, category, startTime, endTime, date, maxSpots, area, color, emoji, recurring } = req.body;
     const updateData = { title, description, category, startTime, endTime, maxSpots, area, color, emoji, recurring };
+
+    // Validate maxSpots isn't below current occupancy (including guests)
+    if (maxSpots != null) {
+      const currentAttendees = await prisma.eventAttendee.findMany({
+        where: { eventId: event.id, status: 'JOINED' },
+        select: { guestCount: true },
+      });
+      const totalPeople = currentAttendees.reduce((sum, a) => sum + 1 + a.guestCount, 0);
+      if (maxSpots < totalPeople) {
+        return res.status(400).json({
+          error: `Cannot reduce capacity below current attendance (${totalPeople} people)`,
+        });
+      }
+    }
+
     if (date) {
       const eventDate = new Date(date);
       if (eventDate <= new Date()) {

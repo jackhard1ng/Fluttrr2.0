@@ -283,7 +283,8 @@ router.post('/dm', requireAuth, async (req, res, next) => {
     }
 
     const currentId = getMemberId(req);
-    const chatType = targetBusinessId ? 'BIZ_DM' : 'DM';
+    // Use BIZ_DM whenever a business is involved (either sender or target)
+    const chatType = (targetBusinessId || req.accountType === 'business') ? 'BIZ_DM' : 'DM';
 
     // Check block status (only for user-to-user DMs)
     if (targetUserId && req.accountType === 'user') {
@@ -302,25 +303,26 @@ router.post('/dm', requireAuth, async (req, res, next) => {
 
     // Check for existing DM
     let existingChat;
+    const senderMemberFilter = req.accountType === 'user'
+      ? { userId: currentId }
+      : { businessId: currentId };
+
     if (targetUserId) {
       existingChat = await prisma.chat.findFirst({
         where: {
-          type: 'DM',
+          type: chatType,
           AND: [
-            { members: { some: { userId: currentId } } },
+            { members: { some: senderMemberFilter } },
             { members: { some: { userId: targetUserId } } },
           ],
         },
       });
     } else if (targetBusinessId) {
-      const memberFilter = req.accountType === 'user'
-        ? { userId: currentId }
-        : { businessId: currentId };
       existingChat = await prisma.chat.findFirst({
         where: {
           type: 'BIZ_DM',
           AND: [
-            { members: { some: memberFilter } },
+            { members: { some: senderMemberFilter } },
             { members: { some: { businessId: targetBusinessId } } },
           ],
         },

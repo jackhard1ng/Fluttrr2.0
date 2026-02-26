@@ -79,6 +79,9 @@ export default function ChatRoomScreen() {
     if (!chatId) return;
 
     let mounted = true;
+    let handleNewMessage: ((msg: MessageWithSender) => void) | null = null;
+    let handleTypingEvt: ((data: { chatId: string; userId: string }) => void) | null = null;
+    let handleStopTyping: ((data: { chatId: string; userId: string }) => void) | null = null;
 
     const setup = async () => {
       await fetchMessages(1);
@@ -92,26 +95,28 @@ export default function ChatRoomScreen() {
         const socket = await connectSocket();
         joinChatRoom(chatId);
 
-        socket.on('new_message', (message: MessageWithSender) => {
+        handleNewMessage = (message: MessageWithSender) => {
           if (message.chatId === chatId && mounted) {
             setMessages((prev) => [message, ...prev]);
             chatsApi.markRead(chatId).catch(() => {});
           }
-        });
-
-        socket.on('typing', (data: { chatId: string; userId: string }) => {
+        };
+        handleTypingEvt = (data: { chatId: string; userId: string }) => {
           if (data.chatId === chatId && data.userId !== myId && mounted) {
             setTypingUsers((prev) =>
               prev.includes(data.userId) ? prev : [...prev, data.userId],
             );
           }
-        });
-
-        socket.on('stop_typing', (data: { chatId: string; userId: string }) => {
+        };
+        handleStopTyping = (data: { chatId: string; userId: string }) => {
           if (data.chatId === chatId && mounted) {
             setTypingUsers((prev) => prev.filter((id) => id !== data.userId));
           }
-        });
+        };
+
+        socket.on('new_message', handleNewMessage);
+        socket.on('typing', handleTypingEvt);
+        socket.on('stop_typing', handleStopTyping);
       } catch {
         // Socket connection failed — messages still work via REST
       }
@@ -121,12 +126,13 @@ export default function ChatRoomScreen() {
 
     return () => {
       mounted = false;
+      if (typingTimeout.current) clearTimeout(typingTimeout.current);
       leaveChatRoom(chatId);
       const socket = getSocket();
       if (socket) {
-        socket.off('new_message');
-        socket.off('typing');
-        socket.off('stop_typing');
+        if (handleNewMessage) socket.off('new_message', handleNewMessage);
+        if (handleTypingEvt) socket.off('typing', handleTypingEvt);
+        if (handleStopTyping) socket.off('stop_typing', handleStopTyping);
       }
     };
   }, [chatId, fetchMessages, myId]);
