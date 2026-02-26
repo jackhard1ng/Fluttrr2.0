@@ -11,9 +11,10 @@ interface MomentCardProps {
   moment: MomentWithCounts;
   onComment?: () => void;
   onDelete?: () => void;
+  onPress?: () => void;
 }
 
-export function MomentCard({ moment, onComment, onDelete }: MomentCardProps) {
+export function MomentCard({ moment, onComment, onDelete, onPress }: MomentCardProps) {
   const { user } = useAuthStore();
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(moment.likeCount);
@@ -60,7 +61,7 @@ export function MomentCard({ moment, onComment, onDelete }: MomentCardProps) {
   };
 
   return (
-    <View style={s.card}>
+    <TouchableOpacity style={s.card} onPress={onPress} activeOpacity={onPress ? 0.7 : 1}>
       {/* Header */}
       <View style={s.header}>
         <Avatar uri={moment.user.profilePhoto} size={36} />
@@ -103,7 +104,7 @@ export function MomentCard({ moment, onComment, onDelete }: MomentCardProps) {
           <Text style={s.actionText}>{moment.commentCount}</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 

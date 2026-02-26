@@ -208,11 +208,12 @@ model Event {
 }
 
 model EventAttendee {
-  id       String         @id @default(uuid()) @db.Uuid
-  eventId  String         @db.Uuid
-  userId   String         @db.Uuid
-  status   AttendeeStatus @default(JOINED)
-  joinedAt DateTime       @default(now())
+  id         String         @id @default(uuid()) @db.Uuid
+  eventId    String         @db.Uuid
+  userId     String         @db.Uuid
+  status     AttendeeStatus @default(JOINED)
+  guestCount Int            @default(0)
+  joinedAt   DateTime       @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)

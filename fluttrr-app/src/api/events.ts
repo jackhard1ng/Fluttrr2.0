@@ -67,8 +67,8 @@ export const eventsApi = {
     return client.get<EventDetailResponse>(`/api/events/${id}`);
   },
 
-  join(id: string) {
-    return client.post<{ message: string; chatId: string | null }>(`/api/events/${id}/join`);
+  join(id: string, guestCount?: number) {
+    return client.post<{ message: string; chatId: string | null; guestCount: number }>(`/api/events/${id}/join`, guestCount ? { guestCount } : undefined);
   },
 
   leave(id: string) {

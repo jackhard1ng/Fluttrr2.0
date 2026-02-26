@@ -121,9 +121,17 @@ export default function MomentsScreen() {
           </View>
         </View>
       ) : (
-        <TouchableOpacity style={s.composerTrigger} onPress={() => setComposerOpen(true)}>
-          <Text style={s.composerPlaceholder}>Share a moment...</Text>
-        </TouchableOpacity>
+        <View style={s.composerRow}>
+          <TouchableOpacity style={s.composerTrigger} onPress={() => setComposerOpen(true)}>
+            <Text style={s.composerPlaceholder}>Share a moment...</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={s.storyBtn}
+            onPress={() => router.push('/(user)/(home)/create-moment')}
+          >
+            <Text style={s.storyBtnText}>🎨</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </View>
   );
@@ -136,7 +144,11 @@ export default function MomentsScreen() {
         data={moments}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <MomentCard moment={item} onDelete={handleDelete} />
+          <MomentCard
+            moment={item}
+            onDelete={handleDelete}
+            onPress={() => router.push({ pathname: '/(shared)/moment/[id]', params: { id: item.id } })}
+          />
         )}
         ListHeaderComponent={renderHeader}
         ListEmptyComponent={
@@ -165,15 +177,32 @@ export default function MomentsScreen() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.dark },
+  composerRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
   composerTrigger: {
+    flex: 1,
     backgroundColor: Colors.card,
     borderRadius: Layout.radius.lg,
     padding: 14,
-    marginBottom: 16,
     borderWidth: 1,
     borderColor: Colors.border,
   },
   composerPlaceholder: { fontSize: 14, color: Colors.textSecondary },
+  storyBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: Colors.purple + '25',
+    borderWidth: 1,
+    borderColor: Colors.purple + '50',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  storyBtnText: { fontSize: 20 },
   composer: {
     backgroundColor: Colors.card,
     borderRadius: Layout.radius.lg,

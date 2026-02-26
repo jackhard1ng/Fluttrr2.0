@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   Share,
+  Modal,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,9 +37,12 @@ export default function EventDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [joining, setJoining] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [guestModalVisible, setGuestModalVisible] = useState(false);
+  const [guestCount, setGuestCount] = useState(0);
 
   const isJoined = event?.attendees?.some((a) => a.id === user?.id) ?? false;
   const isUser = accountType === 'user';
+  const maxGuests = event?.spotsLeft != null ? Math.min(10, Math.max(0, event.spotsLeft - 1)) : 10;
 
   const fetchEvent = useCallback(async () => {
     if (!id) return;
@@ -58,13 +62,21 @@ export default function EventDetailScreen() {
     fetchEvent();
   }, [fetchEvent]);
 
-  const handleJoin = async () => {
+  const handleJoinPress = () => {
     if (!isAuthenticated || !isUser || !id) return;
+    setGuestCount(0);
+    setGuestModalVisible(true);
+  };
+
+  const handleJoinConfirm = async () => {
+    if (!id) return;
+    setGuestModalVisible(false);
     setJoining(true);
     try {
-      const { data } = await eventsApi.join(id);
-      Alert.alert('Joined!', 'You\'ve been added to the event group chat.', [{ text: 'OK' }]);
-      fetchEvent(); // Refresh to show updated attendees
+      await eventsApi.join(id, guestCount > 0 ? guestCount : undefined);
+      const guestNote = guestCount > 0 ? ` You're bringing ${guestCount} guest${guestCount > 1 ? 's' : ''}.` : '';
+      Alert.alert('Joined!', `You've been added to the event group chat.${guestNote}`, [{ text: 'OK' }]);
+      fetchEvent();
     } catch (err) {
       Alert.alert('Error', extractErrorMessage(err));
     } finally {
@@ -210,6 +222,30 @@ export default function EventDetailScreen() {
           </View>
         )}
 
+        {/* Actions */}
+        <View style={styles.actionsRow}>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push({
+              pathname: '/(shared)/invite',
+              params: { eventId: id, eventTitle: event.title },
+            })}
+          >
+            <Text style={styles.actionEmoji}>📤</Text>
+            <Text style={styles.actionLabel}>Invite</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.actionBtn}
+            onPress={() => router.push({
+              pathname: '/(shared)/report',
+              params: { targetId: id, targetType: 'EVENT' },
+            })}
+          >
+            <Text style={styles.actionEmoji}>⚠️</Text>
+            <Text style={styles.actionLabel}>Report</Text>
+          </TouchableOpacity>
+        </View>
+
         {/* Spacer for bottom button */}
         <View style={{ height: 100 }} />
       </ScrollView>
@@ -234,13 +270,68 @@ export default function EventDetailScreen() {
           ) : (
             <Button
               title="Join Event"
-              onPress={handleJoin}
+              onPress={handleJoinPress}
               loading={joining}
               disabled={event.spotsLeft !== null && event.spotsLeft <= 0}
             />
           )}
         </View>
       )}
+
+      {/* Guest picker modal */}
+      <Modal
+        visible={guestModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setGuestModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Bringing anyone?</Text>
+            <Text style={styles.modalSubtitle}>How many guests are you bringing?</Text>
+
+            <View style={styles.stepperRow}>
+              <TouchableOpacity
+                style={[styles.stepperBtn, guestCount <= 0 && styles.stepperBtnDisabled]}
+                onPress={() => setGuestCount((c) => Math.max(0, c - 1))}
+                disabled={guestCount <= 0}
+              >
+                <Text style={styles.stepperText}>−</Text>
+              </TouchableOpacity>
+              <Text style={styles.stepperValue}>{guestCount}</Text>
+              <TouchableOpacity
+                style={[styles.stepperBtn, guestCount >= maxGuests && styles.stepperBtnDisabled]}
+                onPress={() => setGuestCount((c) => Math.min(maxGuests, c + 1))}
+                disabled={guestCount >= maxGuests}
+              >
+                <Text style={styles.stepperText}>+</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.guestNote}>
+              {guestCount === 0
+                ? 'Just you'
+                : `You + ${guestCount} guest${guestCount > 1 ? 's' : ''}`}
+            </Text>
+
+            <View style={styles.modalActions}>
+              <Button
+                title="Cancel"
+                onPress={() => setGuestModalVisible(false)}
+                variant="secondary"
+                small
+                full={false}
+              />
+              <Button
+                title="Join"
+                onPress={handleJoinConfirm}
+                small
+                full={false}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -441,6 +532,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
   },
+  // Actions row
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 16,
+  },
+  actionBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingVertical: 12,
+  },
+  actionEmoji: { fontSize: 16 },
+  actionLabel: { fontSize: 14, color: Colors.text, fontWeight: '500' },
   // Bottom action
   bottomAction: {
     position: 'absolute',
@@ -468,4 +579,37 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: Colors.success,
   },
+  // Guest modal
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: Colors.overlay,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+    padding: 24,
+    marginHorizontal: 32,
+    width: '85%',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: Colors.text, marginBottom: 4 },
+  modalSubtitle: { fontSize: 14, color: Colors.textSecondary, marginBottom: 20 },
+  stepperRow: { flexDirection: 'row', alignItems: 'center', gap: 24, marginBottom: 12 },
+  stepperBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: Colors.blue + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepperBtnDisabled: { opacity: 0.3 },
+  stepperText: { fontSize: 22, fontWeight: '600', color: Colors.blue },
+  stepperValue: { fontSize: 28, fontWeight: '700', color: Colors.text, minWidth: 40, textAlign: 'center' },
+  guestNote: { fontSize: 14, color: Colors.textSecondary, marginBottom: 20 },
+  modalActions: { flexDirection: 'row', gap: 10 },
 });

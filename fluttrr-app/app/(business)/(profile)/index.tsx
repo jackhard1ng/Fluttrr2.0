@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Alert, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { Button } from '@/components/ui/Button';
@@ -11,6 +12,7 @@ import { businessApi } from '@/api/business';
 import { extractErrorMessage } from '@/utils/error';
 
 export default function BizProfileScreen() {
+  const router = useRouter();
   const { business, logout, setBusiness } = useAuthStore();
 
   const [editing, setEditing] = useState(false);
@@ -83,6 +85,19 @@ export default function BizProfileScreen() {
           </Card>
         )}
 
+        <Card style={styles.menuCard}>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(business)/(profile)/reviews')}>
+            <Text style={styles.menuEmoji}>⭐</Text>
+            <Text style={styles.menuLabel}>Reviews</Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(business)/(profile)/subscriptions')}>
+            <Text style={styles.menuEmoji}>💳</Text>
+            <Text style={styles.menuLabel}>Subscription</Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
+        </Card>
+
         <Button title="Sign Out" onPress={() => {
           Alert.alert('Sign Out', 'Are you sure?', [
             { text: 'Cancel', style: 'cancel' },
@@ -125,4 +140,16 @@ const styles = StyleSheet.create({
   editForm: { marginTop: 8 },
   editActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8, marginTop: 8 },
   detailsCard: { marginBottom: 16 },
+  menuCard: { marginBottom: 16 },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+    gap: 10,
+  },
+  menuEmoji: { fontSize: 16 },
+  menuLabel: { flex: 1, fontSize: 15, color: Colors.text },
+  menuArrow: { fontSize: 18, color: Colors.textMuted },
 });

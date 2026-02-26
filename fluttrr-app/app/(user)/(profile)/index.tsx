@@ -58,11 +58,9 @@ export default function ProfileScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Profile</Text>
-        {!editing && (
-          <TouchableOpacity onPress={() => setEditing(true)}>
-            <Text style={styles.editBtn}>Edit</Text>
-          </TouchableOpacity>
-        )}
+        <TouchableOpacity onPress={() => router.push('/(user)/(profile)/edit')}>
+          <Text style={styles.editBtn}>Edit</Text>
+        </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
@@ -140,10 +138,8 @@ export default function ProfileScreen() {
         <Card style={styles.menuCard}>
           <MenuItem emoji="🎉" label="My Events" onPress={() => router.push('/(user)/(profile)/my-events')} />
           <MenuItem emoji="🔔" label="Notifications" onPress={() => router.push('/(user)/(home)/notifications')} />
-          <MenuItem emoji="🚫" label="Blocked Users" onPress={() => router.push('/(user)/(profile)/blocked-users')} />
-          <MenuItem emoji="📝" label="Terms of Service" onPress={() => {}} />
-          <MenuItem emoji="🔒" label="Privacy Policy" onPress={() => {}} />
-          <MenuItem emoji="📧" label="Contact Us" onPress={() => {}} />
+          <MenuItem emoji="⚙️" label="Settings" onPress={() => router.push('/(user)/(profile)/settings')} />
+          <MenuItem emoji="❓" label="Help & FAQ" onPress={() => router.push('/(user)/(profile)/help')} />
         </Card>
 
         <Button

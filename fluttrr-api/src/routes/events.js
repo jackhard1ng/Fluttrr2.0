@@ -312,10 +312,12 @@ router.delete('/:id', requireVerifiedBusiness, async (req, res, next) => {
 
 router.post('/:id/join', requireUser, async (req, res, next) => {
   try {
+    const guestCount = Math.max(0, Math.min(10, parseInt(req.body.guestCount) || 0));
+
     const event = await prisma.event.findUnique({
       where: { id: req.params.id },
       include: {
-        _count: { select: { attendees: { where: { status: 'JOINED' } } } },
+        attendees: { where: { status: 'JOINED' }, select: { guestCount: true } },
         chat: true,
       },
     });
@@ -323,9 +325,13 @@ router.post('/:id/join', requireUser, async (req, res, next) => {
     if (!event) return res.status(404).json({ error: 'Event not found' });
     if (event.status !== 'ACTIVE') return res.status(400).json({ error: 'Event is not active' });
 
-    // Check capacity
-    if (event.maxSpots && event._count.attendees >= event.maxSpots) {
-      return res.status(400).json({ error: 'Event is full' });
+    // Calculate total people (each attendee + their guests)
+    const totalPeople = event.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0);
+
+    // Check capacity (the new joiner + their guests must fit)
+    if (event.maxSpots && (totalPeople + 1 + guestCount) > event.maxSpots) {
+      const spotsLeft = Math.max(0, event.maxSpots - totalPeople);
+      return res.status(400).json({ error: spotsLeft > 0 ? `Only ${spotsLeft} spot${spotsLeft !== 1 ? 's' : ''} left` : 'Event is full' });
     }
 
     // Check if already joined
@@ -339,8 +345,8 @@ router.post('/:id/join', requireUser, async (req, res, next) => {
     // Upsert attendee (handles re-joining after leaving)
     await prisma.eventAttendee.upsert({
       where: { eventId_userId: { eventId: event.id, userId: req.user.id } },
-      create: { eventId: event.id, userId: req.user.id, status: 'JOINED' },
-      update: { status: 'JOINED', joinedAt: new Date() },
+      create: { eventId: event.id, userId: req.user.id, status: 'JOINED', guestCount },
+      update: { status: 'JOINED', joinedAt: new Date(), guestCount },
     });
 
     // Add user to event group chat
@@ -364,13 +370,14 @@ router.post('/:id/join', requireUser, async (req, res, next) => {
     }
 
     // Push notification to business owner
+    const guestNote = guestCount > 0 ? ` (+${guestCount} guest${guestCount > 1 ? 's' : ''})` : '';
     notifyBusiness(prisma, event.businessId, {
       title: 'New attendee!',
-      body: `${req.user.displayName} joined ${event.title}`,
+      body: `${req.user.displayName} joined ${event.title}${guestNote}`,
       data: { eventId: event.id, type: 'EVENT_JOINED' },
     }).catch(() => {});
 
-    res.json({ message: 'Joined event', chatId: event.chat?.id });
+    res.json({ message: 'Joined event', chatId: event.chat?.id, guestCount });
   } catch (err) {
     next(err);
   }
