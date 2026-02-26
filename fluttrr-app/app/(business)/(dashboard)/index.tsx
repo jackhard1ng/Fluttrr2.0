@@ -6,8 +6,10 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/colors';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -17,6 +19,7 @@ import { businessApi, type BusinessStatsResponse } from '@/api/business';
 import { extractErrorMessage } from '@/utils/error';
 
 export default function BusinessDashboard() {
+  const router = useRouter();
   const { business } = useAuthStore();
   const [stats, setStats] = useState<BusinessStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,6 +78,14 @@ export default function BusinessDashboard() {
               <StatCard emoji="📝" label="Reviews" value={stats.reviewCount} />
             </View>
 
+            <TouchableOpacity
+              style={styles.analyticsBtn}
+              onPress={() => router.push('/(business)/(dashboard)/analytics')}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.analyticsBtnText}>📈 View Detailed Analytics</Text>
+            </TouchableOpacity>
+
             {!business?.verified && (
               <Card style={styles.pendingBanner}>
                 <Text style={styles.pendingEmoji}>⏳</Text>
@@ -127,4 +138,14 @@ const styles = StyleSheet.create({
   pendingEmoji: { fontSize: 32, marginBottom: 8 },
   pendingTitle: { fontSize: 16, fontWeight: '600', color: Colors.warn },
   pendingText: { fontSize: 13, color: Colors.textSecondary, textAlign: 'center', marginTop: 4, lineHeight: 20 },
+  analyticsBtn: {
+    marginTop: 16,
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  analyticsBtnText: { fontSize: 15, fontWeight: '600', color: Colors.blue },
 });

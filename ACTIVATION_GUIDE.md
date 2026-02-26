@@ -285,3 +285,36 @@ In production:
 ```bash
 npx prisma migrate deploy
 ```
+
+---
+
+## Post-Launch Roadmap
+
+Once all services above are activated and you're live in the app stores, here's what to prioritize next:
+
+### Immediate (Week 1-2 after launch)
+- **Monitor error logs** — Watch Railway logs (`railway logs`) and Stripe webhook dashboard for failures
+- **Seed initial data** — Create 5-10 real or demo events from verified business accounts so the explore screen isn't empty
+- **Test the full user flow** on a physical device: register → verify OTP → browse events → join → chat → leave review
+- **Test the business flow**: register business → get verified (admin marks verified) → create event → view attendees → check analytics
+- **Run `npx prisma migrate deploy`** if you haven't already — the subscription fields need to exist in production
+
+### Short-term (Month 1)
+- **Stories UI** — The `Story` model and cron cleanup exist in the backend. Add a stories carousel to the home screen (stories auto-expire after 24h)
+- **Wire ReportSheet into screens** — The `ReportSheet` bottom-sheet component exists at `src/components/ReportSheet.tsx`. Import it into event detail, user profile, and chat screens to let users report content inline
+- **Deep linking** — Add `expo-linking` config so shared event URLs open directly in the app
+- **App Store review prompts** — Use `expo-store-review` to prompt happy users for ratings after attending 3+ events
+
+### Medium-term (Month 2-3)
+- **Image optimization** — Add sharp/blurhash to generate thumbnails and placeholder hashes on upload
+- **Event reminders** — Schedule push notifications 1 hour before events the user has joined
+- **Business promotions** — Let Growth/Pro businesses pin or boost events to the top of the explore feed
+- **Search improvements** — Add full-text search with PostgreSQL `tsvector` instead of basic `ILIKE`
+- **Analytics v2** — Add event-specific analytics (views over time, conversion rate from view → join)
+
+### Long-term (Month 3+)
+- **Expand beyond KC** — Generalize the city/neighborhood system to support multiple metro areas
+- **Event ticketing** — Integrate Stripe Connect for paid events where businesses charge attendees
+- **Social graph** — Follow users, activity feed showing friends' event activity
+- **Business verification automation** — Use Stripe Identity or a third-party KYB service
+- **Redis migration** — Move account lockout, rate limiting, and Socket.IO adapter from in-memory to Redis for multi-instance deployment

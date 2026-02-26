@@ -43,9 +43,12 @@ export interface EventListParams {
   date?: string;
   area?: string;
   search?: string;
+  lat?: number;
+  lng?: number;
+  radius?: number;
   page?: number;
   limit?: number;
-  sort?: 'date' | 'newest' | 'popular';
+  sort?: 'date' | 'newest' | 'popular' | 'distance';
 }
 
 export const eventsApi = {

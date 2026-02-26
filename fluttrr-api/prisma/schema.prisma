@@ -403,6 +403,6 @@ model AdminMessage {
   targetId   String?  @db.Uuid
   subject    String
   body       String
-  sentBy     String
+  sentBy     String   @db.Uuid
   createdAt  DateTime @default(now())
 }

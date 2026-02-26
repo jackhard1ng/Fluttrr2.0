@@ -118,23 +118,6 @@ router.post('/', requireUser, momentCreateLimiter, validate(createMomentSchema),
       }
     }
 
-    // Auto-moderation: flag harmful content
-    if (content) {
-      const modResult = checkContent(content);
-      if (modResult.flagged && modResult.severity === 'high') {
-        // Auto-create a report for admin review
-        await prisma.report.create({
-          data: {
-            reportType: 'MOMENT',
-            targetId: 'auto-flagged',
-            reportedById: req.user.id,
-            reason: 'Auto-flagged: ' + modResult.reason,
-            details: content.substring(0, 500),
-          },
-        }).catch(() => {});
-      }
-    }
-
     const moment = await prisma.moment.create({
       data: {
         userId: req.user.id,
@@ -148,6 +131,22 @@ router.post('/', requireUser, momentCreateLimiter, validate(createMomentSchema),
         },
       },
     });
+
+    // Auto-moderation: flag harmful content (after creation so we have the real moment ID)
+    if (content) {
+      const modResult = checkContent(content);
+      if (modResult.flagged && modResult.severity === 'high') {
+        prisma.report.create({
+          data: {
+            reportType: 'MOMENT',
+            targetId: moment.id,
+            reportedById: req.user.id,
+            reason: 'Auto-flagged: ' + modResult.reason,
+            details: content.substring(0, 500),
+          },
+        }).catch(() => {});
+      }
+    }
 
     res.status(201).json({ ...moment, likeCount: 0, commentCount: 0 });
   } catch (err) {

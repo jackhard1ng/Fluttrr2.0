@@ -21,6 +21,7 @@ import { eventsApi, type EventListParams } from '@/api/events';
 import { extractErrorMessage } from '@/utils/error';
 import { CATEGORY_META, KC_NEIGHBORHOODS } from '@/constants/categories';
 import { EventCategory } from '@/types/enums';
+import { useLocation } from '@/hooks/useLocation';
 import type { Event } from '@/types/models';
 
 type EventWithMeta = Event & { attendeeCount: number; spotsLeft: number | null };
@@ -36,6 +37,7 @@ const CATEGORIES = [
 
 export default function ExploreScreen() {
   const router = useRouter();
+  const { lat, lng, granted: locationGranted } = useLocation();
 
   const [events, setEvents] = useState<EventWithMeta[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<EventCategory | null>(null);
@@ -53,11 +55,17 @@ export default function ExploreScreen() {
       const params: EventListParams = {
         page: pageNum,
         limit: 20,
-        sort: 'date',
+        sort: locationGranted && !selectedArea ? 'distance' : 'date',
       };
       if (selectedCategory) params.category = selectedCategory;
       if (selectedArea) params.area = selectedArea;
       if (searchQuery.trim().length >= 2) params.search = searchQuery.trim();
+      // Pass device location for distance-based sorting
+      if (locationGranted && !selectedArea) {
+        params.lat = lat;
+        params.lng = lng;
+        params.radius = 25;
+      }
 
       try {
         setError(null);
@@ -73,7 +81,7 @@ export default function ExploreScreen() {
         if (!append) setError(extractErrorMessage(err));
       }
     },
-    [selectedCategory, selectedArea, searchQuery],
+    [selectedCategory, selectedArea, searchQuery, lat, lng, locationGranted],
   );
 
   useEffect(() => {

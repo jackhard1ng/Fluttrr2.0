@@ -158,14 +158,14 @@ router.post('/:id/messages', requireAuth, messageLimiter, validate(sendMessageSc
 
     const sanitized = sanitizeContent(req.body.content);
 
-    // Auto-moderation: flag harmful messages
+    // Auto-moderation: flag harmful messages (only when sender is a user, since reportedById FK points to User)
     const modResult = checkContent(sanitized);
-    if (modResult.flagged && modResult.severity === 'high') {
+    if (modResult.flagged && modResult.severity === 'high' && req.accountType === 'user') {
       prisma.report.create({
         data: {
           reportType: 'MESSAGE',
           targetId: req.params.id,
-          reportedById: req.accountType === 'user' ? getMemberId(req) : getMemberId(req),
+          reportedById: req.user.id,
           reason: 'Auto-flagged: ' + modResult.reason,
           details: sanitized.substring(0, 500),
         },

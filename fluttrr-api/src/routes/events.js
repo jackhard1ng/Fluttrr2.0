@@ -106,9 +106,9 @@ router.get('/', async (req, res, next) => {
     // Filter by radius if location provided
     if (lat && lng) {
       const maxDist = parseFloat(radius);
-      eventsWithSpots = eventsWithSpots.filter((e) => !e.distance || e.distance <= maxDist);
+      eventsWithSpots = eventsWithSpots.filter((e) => e.distance == null || e.distance <= maxDist);
       if (sort === 'distance' || sort === 'date') {
-        eventsWithSpots.sort((a, b) => (a.distance || 999) - (b.distance || 999));
+        eventsWithSpots.sort((a, b) => (a.distance ?? 999) - (b.distance ?? 999));
       }
     }
 
