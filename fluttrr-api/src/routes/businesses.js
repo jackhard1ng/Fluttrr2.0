@@ -172,6 +172,76 @@ router.get('/stats', requireBusiness, async (req, res, next) => {
   }
 });
 
+// ─── GET /analytics (requireBusiness) ────────────────────
+
+router.get('/analytics', requireBusiness, async (req, res, next) => {
+  try {
+    const { days = 30 } = req.query;
+    const daysNum = Math.min(90, Math.max(7, parseInt(days) || 30));
+    const since = new Date(Date.now() - daysNum * 24 * 60 * 60 * 1000);
+    const bizId = req.business.id;
+
+    // Daily attendee joins over the period
+    const dailyJoins = await prisma.$queryRawUnsafe(`
+      SELECT DATE("joinedAt") as date, COUNT(*)::int as count
+      FROM "EventAttendee"
+      WHERE "eventId" IN (SELECT id FROM "Event" WHERE "businessId" = $1::uuid)
+        AND "joinedAt" >= $2
+      GROUP BY DATE("joinedAt")
+      ORDER BY date ASC
+    `, bizId, since);
+
+    // Daily event views over the period
+    const eventViewTotals = await prisma.event.findMany({
+      where: { businessId: bizId },
+      select: { id: true, title: true, views: true, date: true },
+      orderBy: { views: 'desc' },
+      take: 10,
+    });
+
+    // Category breakdown
+    const categoryBreakdown = await prisma.event.groupBy({
+      by: ['category'],
+      where: { businessId: bizId },
+      _count: true,
+      orderBy: { _count: { category: 'desc' } },
+    });
+
+    // Recent reviews
+    const recentReviews = await prisma.review.findMany({
+      where: { businessId: bizId, createdAt: { gte: since } },
+      include: {
+        user: { select: { displayName: true, profilePhoto: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+    });
+
+    // Subscription usage (event count this month for free tier)
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const eventsThisMonth = await prisma.event.count({
+      where: { businessId: bizId, createdAt: { gte: monthStart } },
+    });
+
+    res.json({
+      period: daysNum,
+      dailyJoins,
+      topEvents: eventViewTotals,
+      categoryBreakdown: categoryBreakdown.map((c) => ({
+        category: c.category,
+        count: c._count,
+      })),
+      recentReviews,
+      eventsThisMonth,
+      subscriptionTier: req.business.subscriptionTier,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ─── GET /:id (PUBLIC) ──────────────────────────────────
 
 router.get('/:id', async (req, res, next) => {

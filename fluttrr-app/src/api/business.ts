@@ -79,6 +79,18 @@ export const businessApi = {
     return client.get<BusinessStatsResponse>('/api/business/stats');
   },
 
+  getAnalytics(days?: number) {
+    return client.get<{
+      period: number;
+      dailyJoins: { date: string; count: number }[];
+      topEvents: { id: string; title: string; views: number; date: string }[];
+      categoryBreakdown: { category: string; count: number }[];
+      recentReviews: { id: string; rating: number; content: string | null; user: { displayName: string; profilePhoto: string }; createdAt: string }[];
+      eventsThisMonth: number;
+      subscriptionTier: string;
+    }>('/api/business/analytics', { params: { days } });
+  },
+
   getEvents(params?: { filter?: 'all' | 'active' | 'past'; page?: number; limit?: number }) {
     return client.get<BusinessEventsResponse>('/api/business/events', { params });
   },

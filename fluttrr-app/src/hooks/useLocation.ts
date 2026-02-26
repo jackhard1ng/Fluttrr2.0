@@ -1,6 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import * as Location from 'expo-location';
-import { DEFAULT_LAT, DEFAULT_LNG } from '@/constants/config';
+import { Config } from '@/constants/config';
+
+const DEFAULT_LAT = Config.DEFAULT_LAT;
+const DEFAULT_LNG = Config.DEFAULT_LNG;
 
 interface LocationState {
   lat: number;

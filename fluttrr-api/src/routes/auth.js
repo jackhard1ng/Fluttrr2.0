@@ -13,6 +13,7 @@ const {
 } = require('../validators/schemas');
 const { sendOtpEmail, sendPasswordResetEmail } = require('../utils/email');
 const { geocodeAddress } = require('../utils/geocode');
+const { checkLockout, recordFailedAttempt, clearAttempts } = require('../middleware/accountLockout');
 
 const router = express.Router();
 
@@ -185,8 +186,18 @@ router.post('/login', loginLimiter, validate(loginSchema), async (req, res, next
   try {
     const { email, password } = req.body;
 
+    // Check account lockout (by email, across all IPs)
+    const lockout = checkLockout(email);
+    if (lockout.locked) {
+      return res.status(429).json({
+        error: `Account temporarily locked. Try again in ${lockout.retryAfter} seconds.`,
+        retryAfter: lockout.retryAfter,
+      });
+    }
+
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
+      recordFailedAttempt(email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -196,8 +207,11 @@ router.post('/login', loginLimiter, validate(loginSchema), async (req, res, next
 
     const valid = await comparePassword(password, user.passwordHash);
     if (!valid) {
+      recordFailedAttempt(email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
+
+    clearAttempts(email);
 
     await prisma.user.update({
       where: { id: user.id },
@@ -224,8 +238,18 @@ router.post('/login/business', loginLimiter, validate(loginSchema), async (req, 
   try {
     const { email, password } = req.body;
 
+    // Check account lockout (by email, across all IPs)
+    const lockout = checkLockout(email);
+    if (lockout.locked) {
+      return res.status(429).json({
+        error: `Account temporarily locked. Try again in ${lockout.retryAfter} seconds.`,
+        retryAfter: lockout.retryAfter,
+      });
+    }
+
     const business = await prisma.business.findUnique({ where: { email } });
     if (!business) {
+      recordFailedAttempt(email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -235,8 +259,11 @@ router.post('/login/business', loginLimiter, validate(loginSchema), async (req, 
 
     const valid = await comparePassword(password, business.passwordHash);
     if (!valid) {
+      recordFailedAttempt(email);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
+
+    clearAttempts(email);
 
     const tokenPayload = { id: business.id, email: business.email, type: 'business' };
     const accessToken = signAccessToken(tokenPayload);

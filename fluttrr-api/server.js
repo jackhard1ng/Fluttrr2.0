@@ -9,6 +9,8 @@ const http = require('http');
 const { Server } = require('socket.io');
 const { verifyToken } = require('./src/utils/jwt');
 const prisma = require('./src/utils/prisma');
+const { requestLogger } = require('./src/middleware/requestLogger');
+const { sanitizeBody } = require('./src/middleware/sanitize');
 
 const path = require('path');
 
@@ -40,6 +42,10 @@ app.use(
 
 app.use(helmet());
 
+// ─── Request Logging ────────────────────────────────────
+
+app.use(requestLogger);
+
 // ─── Body Parsing ────────────────────────────────────────
 
 // Raw body for Stripe webhooks (must be before json parser)
@@ -49,6 +55,10 @@ app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// ─── Input Sanitization ─────────────────────────────────
+
+app.use(sanitizeBody);
 
 // ─── Global Rate Limit ──────────────────────────────────
 
@@ -159,8 +169,25 @@ app.use('/', require('./src/routes/pages'));
 
 // ─── Health Check ────────────────────────────────────────
 
-app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+app.get('/api/health', async (req, res) => {
+  const health = {
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    uptime: Math.floor(process.uptime()),
+    memory: Math.round(process.memoryUsage().rss / 1024 / 1024),
+  };
+
+  // Check database connectivity
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    health.database = 'connected';
+  } catch {
+    health.database = 'disconnected';
+    health.status = 'degraded';
+  }
+
+  const statusCode = health.status === 'ok' ? 200 : 503;
+  res.status(statusCode).json(health);
 });
 
 // ─── 404 Handler ─────────────────────────────────────────

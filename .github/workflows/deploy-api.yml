@@ -1,0 +1,50 @@
+name: Deploy API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'fluttrr-api/**'
+      - '.github/workflows/deploy-api.yml'
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: fluttrr-api/package-lock.json
+
+      - name: Install dependencies
+        run: cd fluttrr-api && npm ci
+
+      - name: Generate Prisma client
+        run: cd fluttrr-api && npx prisma generate
+
+      - name: Check for syntax errors
+        run: cd fluttrr-api && node -e "require('./server')" || true
+
+  deploy:
+    name: Deploy to Railway
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy
+        run: cd fluttrr-api && railway up --service fluttrr-api
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

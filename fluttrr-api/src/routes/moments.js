@@ -4,6 +4,7 @@ const prisma = require('../utils/prisma');
 const { requireUser, requireAuth } = require('../middleware/auth');
 const { createMomentSchema, validate } = require('../validators/schemas');
 const { notifyUser } = require('../utils/pushNotifications');
+const { checkContent } = require('../utils/wordFilter');
 
 const router = express.Router();
 
@@ -114,6 +115,23 @@ router.post('/', requireUser, momentCreateLimiter, validate(createMomentSchema),
       const event = await prisma.event.findUnique({ where: { id: eventId } });
       if (!event) {
         return res.status(404).json({ error: 'Event not found' });
+      }
+    }
+
+    // Auto-moderation: flag harmful content
+    if (content) {
+      const modResult = checkContent(content);
+      if (modResult.flagged && modResult.severity === 'high') {
+        // Auto-create a report for admin review
+        await prisma.report.create({
+          data: {
+            reportType: 'MOMENT',
+            targetId: 'auto-flagged',
+            reportedById: req.user.id,
+            reason: 'Auto-flagged: ' + modResult.reason,
+            details: content.substring(0, 500),
+          },
+        }).catch(() => {});
       }
     }
 

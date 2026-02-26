@@ -190,6 +190,114 @@ router.get('/event/:id', async (req, res, next) => {
   }
 });
 
+// ─── Legal / Support Pages ──────────────────────────────
+
+const legalPageDefaults = {
+  ogType: 'website',
+  deepLinkPath: '',
+  jsonLd: null,
+};
+
+router.get('/privacy', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  res.render('privacy', {
+    title: 'Privacy Policy',
+    description: 'Fluttrr Privacy Policy — how we collect, use, and protect your data.',
+    ogTitle: 'Privacy Policy - Fluttrr',
+    ogDescription: 'Learn how Fluttrr handles your personal information.',
+    ogUrl: `${baseUrl}/privacy`,
+    ...legalPageDefaults,
+  });
+});
+
+router.get('/terms', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  res.render('terms', {
+    title: 'Terms of Service',
+    description: 'Fluttrr Terms of Service — rules and guidelines for using the platform.',
+    ogTitle: 'Terms of Service - Fluttrr',
+    ogDescription: 'Terms and conditions for using Fluttrr.',
+    ogUrl: `${baseUrl}/terms`,
+    ...legalPageDefaults,
+  });
+});
+
+router.get('/support', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  res.render('support', {
+    title: 'Support',
+    description: 'Get help with Fluttrr — contact us for questions, issues, or business inquiries.',
+    ogTitle: 'Support - Fluttrr',
+    ogDescription: 'Need help with Fluttrr? Contact our support team.',
+    ogUrl: `${baseUrl}/support`,
+    ...legalPageDefaults,
+  });
+});
+
+// ─── Sitemap & Robots ──────────────────────────────────
+
+router.get('/sitemap.xml', async (req, res) => {
+  try {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+    // Get all active events for dynamic URLs
+    const events = await prisma.event.findMany({
+      where: { status: 'ACTIVE' },
+      select: { id: true, updatedAt: true },
+      orderBy: { date: 'desc' },
+      take: 500,
+    });
+
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+
+    // Static pages
+    const staticPages = [
+      { path: '/events', priority: '1.0', freq: 'daily' },
+      { path: '/privacy', priority: '0.3', freq: 'monthly' },
+      { path: '/terms', priority: '0.3', freq: 'monthly' },
+      { path: '/support', priority: '0.3', freq: 'monthly' },
+    ];
+
+    for (const page of staticPages) {
+      xml += `  <url>\n`;
+      xml += `    <loc>${baseUrl}${page.path}</loc>\n`;
+      xml += `    <changefreq>${page.freq}</changefreq>\n`;
+      xml += `    <priority>${page.priority}</priority>\n`;
+      xml += `  </url>\n`;
+    }
+
+    // Dynamic event pages
+    for (const event of events) {
+      xml += `  <url>\n`;
+      xml += `    <loc>${baseUrl}/event/${event.id}</loc>\n`;
+      xml += `    <lastmod>${event.updatedAt.toISOString().split('T')[0]}</lastmod>\n`;
+      xml += `    <changefreq>weekly</changefreq>\n`;
+      xml += `    <priority>0.7</priority>\n`;
+      xml += `  </url>\n`;
+    }
+
+    xml += '</urlset>';
+
+    res.set('Content-Type', 'application/xml');
+    res.send(xml);
+  } catch (err) {
+    res.status(500).send('Error generating sitemap');
+  }
+});
+
+router.get('/robots.txt', (req, res) => {
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  res.set('Content-Type', 'text/plain');
+  res.send(
+    `User-agent: *\n` +
+    `Allow: /\n` +
+    `Disallow: /api/\n` +
+    `Disallow: /uploads/\n\n` +
+    `Sitemap: ${baseUrl}/sitemap.xml\n`
+  );
+});
+
 // ─── GET / — Redirect to events ────────────────────────
 
 router.get('/', (req, res) => {

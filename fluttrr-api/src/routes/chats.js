@@ -4,6 +4,7 @@ const prisma = require('../utils/prisma');
 const { requireAuth } = require('../middleware/auth');
 const { sendMessageSchema, validate } = require('../validators/schemas');
 const { sendPushNotifications } = require('../utils/pushNotifications');
+const { checkContent } = require('../utils/wordFilter');
 
 const router = express.Router();
 
@@ -155,12 +156,28 @@ router.post('/:id/messages', requireAuth, messageLimiter, validate(sendMessageSc
     });
     if (!membership) return res.status(403).json({ error: 'Not a member of this chat' });
 
+    const sanitized = sanitizeContent(req.body.content);
+
+    // Auto-moderation: flag harmful messages
+    const modResult = checkContent(sanitized);
+    if (modResult.flagged && modResult.severity === 'high') {
+      prisma.report.create({
+        data: {
+          reportType: 'MESSAGE',
+          targetId: req.params.id,
+          reportedById: req.accountType === 'user' ? getMemberId(req) : getMemberId(req),
+          reason: 'Auto-flagged: ' + modResult.reason,
+          details: sanitized.substring(0, 500),
+        },
+      }).catch(() => {});
+    }
+
     const message = await prisma.message.create({
       data: {
         chatId: req.params.id,
         senderId: getMemberId(req),
         senderType: req.accountType === 'user' ? 'USER' : 'BUSINESS',
-        content: sanitizeContent(req.body.content),
+        content: sanitized,
       },
     });
 
