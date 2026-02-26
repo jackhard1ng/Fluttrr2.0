@@ -287,7 +287,7 @@ router.get('/:id', async (req, res, next) => {
 
     res.json({
       ...business,
-      upcomingEvents: upcomingEvents.map((e) => ({
+      events: upcomingEvents.map((e) => ({
         ...e,
         attendeeCount: e._count.attendees,
         _count: undefined,

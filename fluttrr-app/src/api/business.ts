@@ -122,10 +122,22 @@ export const stripeApi = {
 
 export const businessPublicApi = {
   getById(id: string) {
-    return client.get<PublicBusinessResponse>(`/api/businesses/${id}`);
+    return client.get<PublicBusinessResponse>(`/api/business/${id}`);
   },
 
   getReviews(id: string, params?: { page?: number; limit?: number }) {
-    return client.get<PublicReviewsResponse>(`/api/businesses/${id}/reviews`, { params });
+    return client.get<PublicReviewsResponse>(`/api/business/${id}/reviews`, { params });
+  },
+
+  createReview(businessId: string, data: { rating: number; content?: string }) {
+    return client.post(`/api/business/${businessId}/reviews`, data);
+  },
+
+  updateReview(businessId: string, data: { rating?: number; content?: string }) {
+    return client.put(`/api/business/${businessId}/reviews`, data);
+  },
+
+  deleteReview(businessId: string) {
+    return client.delete(`/api/business/${businessId}/reviews`);
   },
 };

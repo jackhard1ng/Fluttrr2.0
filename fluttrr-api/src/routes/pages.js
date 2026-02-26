@@ -253,7 +253,8 @@ router.get('/sitemap.xml', async (req, res) => {
 
     // Static pages
     const staticPages = [
-      { path: '/events', priority: '1.0', freq: 'daily' },
+      { path: '/', priority: '1.0', freq: 'daily' },
+      { path: '/events', priority: '0.9', freq: 'daily' },
       { path: '/privacy', priority: '0.3', freq: 'monthly' },
       { path: '/terms', priority: '0.3', freq: 'monthly' },
       { path: '/support', priority: '0.3', freq: 'monthly' },
@@ -298,10 +299,74 @@ router.get('/robots.txt', (req, res) => {
   );
 });
 
-// ─── GET / — Redirect to events ────────────────────────
+// ─── GET / — Homepage ────────────────────────────────
 
-router.get('/', (req, res) => {
-  res.redirect('/events');
+router.get('/', async (req, res, next) => {
+  try {
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+    // Fetch featured events
+    const featured = await prisma.event.findMany({
+      where: {
+        status: 'ACTIVE',
+        date: { gte: new Date() },
+      },
+      include: {
+        business: { select: { businessName: true, logo: true } },
+        _count: { select: { attendees: { where: { status: 'JOINED' } } } },
+      },
+      orderBy: [{ views: 'desc' }, { date: 'asc' }],
+      take: 6,
+    });
+
+    const featuredFormatted = featured.map((e) => ({
+      ...e,
+      attendeeCount: e._count.attendees,
+      _count: undefined,
+    }));
+
+    // Fetch area counts
+    const areasResult = await prisma.event.findMany({
+      where: { status: 'ACTIVE', date: { gte: new Date() }, area: { not: null } },
+      select: { area: true },
+    });
+
+    const areaCounts = {};
+    for (const e of areasResult) {
+      if (e.area) areaCounts[e.area] = (areaCounts[e.area] || 0) + 1;
+    }
+    const areas = Object.entries(areaCounts)
+      .map(([area, eventCount]) => ({ area, eventCount }))
+      .sort((a, b) => b.eventCount - a.eventCount);
+
+    res.render('home', {
+      title: 'Find Your Vibe in Kansas City',
+      description: 'Discover local events, meet new people, and explore Kansas City with Fluttrr. Food, music, sports, nightlife and more.',
+      ogTitle: 'Fluttrr - Find Your Vibe in Kansas City',
+      ogDescription: 'Discover local events, meet new people, and explore Kansas City together.',
+      ogType: 'website',
+      ogUrl: baseUrl,
+      deepLinkPath: '',
+      jsonLd: {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: 'Fluttrr',
+        url: baseUrl,
+        description: 'Discover local events in Kansas City',
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: `${baseUrl}/events?area={search_term_string}`,
+          'query-input': 'required name=search_term_string',
+        },
+      },
+      featured: featuredFormatted,
+      areas,
+      categoryLabels: CATEGORY_LABELS,
+      formatDate,
+    });
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = router;
