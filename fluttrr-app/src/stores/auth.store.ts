@@ -148,10 +148,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     set({
-      pendingOtpEmail: data.email,
+      isAuthenticated: true,
+      pendingOtpEmail: null,
       accountType: 'user',
       user: user || null,
     });
+
+    // Register push token in background after registration
+    registerAndSavePushToken().catch(() => {});
   },
 
   registerBusiness: async (data: RegisterBusinessData) => {
@@ -169,10 +173,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     set({
-      pendingOtpEmail: data.email,
+      isAuthenticated: true,
+      pendingOtpEmail: null,
       accountType: 'business',
       business: business || null,
     });
+
+    // Register push token in background after registration
+    registerAndSavePushToken().catch(() => {});
   },
 
   verifyOtp: async (email: string, code: string) => {

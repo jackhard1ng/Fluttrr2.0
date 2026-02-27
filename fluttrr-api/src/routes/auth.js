@@ -91,21 +91,9 @@ router.post('/register', registerLimiter, validate(registerUserSchema), async (r
         profilePhoto,
         bio,
         city: city || 'Kansas City',
+        emailVerified: true,
       },
     });
-
-    // Generate OTP
-    const code = generateOtp();
-    await prisma.otpCode.create({
-      data: {
-        email,
-        code,
-        expiresAt: getOtpExpiry(),
-        userId: user.id,
-      },
-    });
-
-    await sendOtpEmail(email, code);
 
     const tokenPayload = { id: user.id, email: user.email, type: 'user', role: user.role };
     const accessToken = signAccessToken(tokenPayload);
@@ -115,7 +103,7 @@ router.post('/register', registerLimiter, validate(registerUserSchema), async (r
       user: sanitizeUser(user),
       accessToken,
       refreshToken,
-      otpRequired: true,
+      otpRequired: false,
     });
   } catch (err) {
     next(err);
@@ -153,19 +141,6 @@ router.post('/register/business', registerLimiter, validate(registerBusinessSche
       },
     });
 
-    // Generate OTP
-    const code = generateOtp();
-    await prisma.otpCode.create({
-      data: {
-        email,
-        code,
-        expiresAt: getOtpExpiry(),
-        businessId: business.id,
-      },
-    });
-
-    await sendOtpEmail(email, code);
-
     const tokenPayload = { id: business.id, email: business.email, type: 'business' };
     const accessToken = signAccessToken(tokenPayload);
     const refreshToken = signRefreshToken(tokenPayload);
@@ -174,7 +149,7 @@ router.post('/register/business', registerLimiter, validate(registerBusinessSche
       business: sanitizeBusiness(business),
       accessToken,
       refreshToken,
-      otpRequired: true,
+      otpRequired: false,
     });
   } catch (err) {
     next(err);
