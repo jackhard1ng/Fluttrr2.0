@@ -59,19 +59,20 @@ export default function RootLayout() {
     return () => { routerReady.current = false; sub.remove(); };
   }, [router]);
 
+  // Re-sync onboarding state when route changes (handles onboarding completion)
+  useEffect(() => {
+    if (onboardingChecked && needsOnboarding) {
+      AsyncStorage.getItem(ONBOARDING_KEY).then((val) => {
+        if (val === 'true') setNeedsOnboarding(false);
+      });
+    }
+  }, [segments, onboardingChecked, needsOnboarding]);
+
   // Auth gate: redirect based on auth state
   useEffect(() => {
     if (isLoading || !onboardingChecked) return;
 
     const inAuthGroup = segments[0] === '(auth)';
-
-    // First-time launch → show onboarding
-    if (needsOnboarding && !isAuthenticated) {
-      if (segments[1] !== 'onboarding') {
-        router.replace('/(auth)/onboarding');
-      }
-      return;
-    }
 
     // If pending OTP, redirect to verify-otp
     if (pendingOtpEmail) {
@@ -85,8 +86,12 @@ export default function RootLayout() {
     }
 
     if (!isAuthenticated && !inAuthGroup) {
-      // Not logged in -> go to auth
-      router.replace('/(auth)/welcome');
+      // Not logged in and not in auth screens -> redirect to auth
+      if (needsOnboarding) {
+        router.replace('/(auth)/onboarding');
+      } else {
+        router.replace('/(auth)/welcome');
+      }
     } else if (isAuthenticated && inAuthGroup) {
       // Logged in but still in auth screens -> go to main flow
       if (isAdmin) {
