@@ -219,6 +219,23 @@ export interface MomentComment {
   user?: User;
 }
 
+export interface EventRecap {
+  id: string;
+  businessId: string;
+  eventId: string;
+  caption: string | null;
+  photos: string[];
+  attendeeCount: number;
+  createdAt: string;
+  event?: {
+    id: string;
+    title: string;
+    category: EventCategory;
+    date: string;
+    area: string | null;
+  };
+}
+
 export interface Story {
   id: string;
   businessId: string;

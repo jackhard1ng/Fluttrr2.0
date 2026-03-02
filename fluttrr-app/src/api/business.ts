@@ -1,5 +1,5 @@
 import client from './client';
-import type { Business, Event, Review } from '@/types/models';
+import type { Business, Event, Review, EventRecap } from '@/types/models';
 import type { CreateEventData } from '@/types/api';
 
 interface BusinessProfileResponse extends Business {
@@ -45,6 +45,7 @@ interface PublicBusinessResponse {
   createdAt: string;
   events: (Event & { attendeeCount: number })[];
   reviews: (Review & { user: { id: string; username: string; displayName: string; profilePhoto: string } })[];
+  recaps: EventRecap[];
   avgRating: number | null;
   reviewCount: number;
 }
@@ -106,6 +107,18 @@ export const businessApi = {
 
   deleteEvent(id: string) {
     return client.delete<{ message: string }>(`/api/events/${id}`);
+  },
+
+  getRecaps() {
+    return client.get<{ recaps: EventRecap[] }>('/api/business/recaps');
+  },
+
+  createRecap(data: { eventId: string; caption?: string; photos?: string[] }) {
+    return client.post<EventRecap>('/api/business/recaps', data);
+  },
+
+  deleteRecap(id: string) {
+    return client.delete<{ message: string }>(`/api/business/recaps/${id}`);
   },
 };
 

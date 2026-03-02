@@ -244,6 +244,78 @@ router.get('/analytics', requireBusiness, async (req, res, next) => {
   }
 });
 
+// ─── GET /recaps (requireBusiness) ───────────────────────
+
+router.get('/recaps', requireBusiness, async (req, res, next) => {
+  try {
+    const recaps = await prisma.eventRecap.findMany({
+      where: { businessId: req.business.id },
+      include: {
+        event: { select: { id: true, title: true, category: true, date: true, area: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json({ recaps });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── POST /recaps (requireBusiness) ─────────────────────
+
+router.post('/recaps', requireBusiness, async (req, res, next) => {
+  try {
+    const { eventId, caption, photos } = req.body;
+    if (!eventId) return res.status(400).json({ error: 'eventId is required' });
+
+    // Verify the event belongs to this business
+    const event = await prisma.event.findFirst({
+      where: { id: eventId, businessId: req.business.id },
+      include: { attendees: { where: { status: 'JOINED' }, select: { guestCount: true } } },
+    });
+    if (!event) return res.status(404).json({ error: 'Event not found' });
+
+    // Check no existing recap for this event
+    const existing = await prisma.eventRecap.findUnique({ where: { eventId } });
+    if (existing) return res.status(409).json({ error: 'A recap already exists for this event' });
+
+    const attendeeCount = event.attendees.reduce((sum, a) => sum + 1 + a.guestCount, 0);
+
+    const recap = await prisma.eventRecap.create({
+      data: {
+        businessId: req.business.id,
+        eventId,
+        caption: caption || null,
+        photos: photos || [],
+        attendeeCount,
+      },
+      include: {
+        event: { select: { id: true, title: true, category: true, date: true, area: true } },
+      },
+    });
+
+    res.status(201).json(recap);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ─── DELETE /recaps/:id (requireBusiness) ────────────────
+
+router.delete('/recaps/:id', requireBusiness, async (req, res, next) => {
+  try {
+    const recap = await prisma.eventRecap.findFirst({
+      where: { id: req.params.id, businessId: req.business.id },
+    });
+    if (!recap) return res.status(404).json({ error: 'Recap not found' });
+
+    await prisma.eventRecap.delete({ where: { id: recap.id } });
+    res.json({ message: 'Recap deleted' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ─── GET /:id (PUBLIC) ──────────────────────────────────
 
 router.get('/:id', async (req, res, next) => {
@@ -259,7 +331,7 @@ router.get('/:id', async (req, res, next) => {
 
     if (!business) return res.status(404).json({ error: 'Business not found' });
 
-    const [upcomingEvents, reviews, avgRating] = await Promise.all([
+    const [upcomingEvents, reviews, avgRating, recaps] = await Promise.all([
       prisma.event.findMany({
         where: {
           businessId: req.params.id,
@@ -285,6 +357,14 @@ router.get('/:id', async (req, res, next) => {
         _avg: { rating: true },
         _count: { rating: true },
       }),
+      prisma.eventRecap.findMany({
+        where: { businessId: req.params.id },
+        include: {
+          event: { select: { id: true, title: true, category: true, date: true, area: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      }),
     ]);
 
     res.json({
@@ -295,6 +375,7 @@ router.get('/:id', async (req, res, next) => {
         attendees: undefined,
       })),
       reviews,
+      recaps,
       avgRating: avgRating._avg.rating ? parseFloat(avgRating._avg.rating.toFixed(1)) : null,
       reviewCount: avgRating._count.rating,
     });

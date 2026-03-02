@@ -118,6 +118,14 @@ export default function BusinessEventsScreen() {
             onPress={() => setFilter(f)}
           />
         ))}
+        {business?.verified && (
+          <TouchableOpacity
+            style={styles.recapBtn}
+            onPress={() => router.push('/(business)/(events)/create-recap')}
+          >
+            <Text style={styles.recapBtnText}>Post Recap</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <FlatList
@@ -154,7 +162,9 @@ const styles = StyleSheet.create({
   createBtnText: { fontSize: 13, fontWeight: '600', color: '#fff' },
   pendingChip: { backgroundColor: Colors.warn + '20', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: Colors.warn + '40' },
   pendingChipText: { fontSize: 12, fontWeight: '600', color: Colors.warn },
-  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginVertical: 10 },
+  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginVertical: 10, alignItems: 'center' },
+  recapBtn: { marginLeft: 'auto', backgroundColor: Colors.success + '20', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: Colors.success + '40' },
+  recapBtnText: { fontSize: 12, fontWeight: '600', color: Colors.success },
   eventCard: { marginBottom: 10 },
   eventRow: { flexDirection: 'row', gap: 12 },
   eventIcon: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  Image,
   Linking,
   Share,
 } from 'react-native';
@@ -17,7 +18,6 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { ErrorView } from '@/components/ui/ErrorView';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { businessPublicApi, type PublicBusinessResponse } from '@/api/business';
 import { getEventEmoji, getEventColor, CATEGORY_META } from '@/constants/categories';
 import { formatEventDate, formatTimeRange } from '@/utils/date';
@@ -181,6 +181,41 @@ export default function BusinessDetailScreen() {
           )}
         </View>
 
+        {/* Event Recaps */}
+        {biz.recaps && biz.recaps.length > 0 && (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Past Events</Text>
+            {biz.recaps.map((recap) => {
+              const catMeta = recap.event ? CATEGORY_META[recap.event.category as EventCategory] : null;
+              return (
+                <Card key={recap.id} style={s.recapCard}>
+                  <Text style={s.recapEventTitle}>{recap.event?.title}</Text>
+                  <View style={s.recapMeta}>
+                    {recap.event && (
+                      <Badge label={formatEventDate(recap.event.date)} color={Colors.textSecondary} />
+                    )}
+                    {catMeta && <Badge label={catMeta.label} color={catMeta.color} />}
+                    <Badge label={`${recap.attendeeCount} attended`} color={Colors.blue} />
+                  </View>
+                  {recap.photos.length > 0 && (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      style={s.recapPhotosScroll}
+                      contentContainerStyle={s.recapPhotosContent}
+                    >
+                      {recap.photos.map((uri, i) => (
+                        <Image key={i} source={{ uri }} style={s.recapPhoto} />
+                      ))}
+                    </ScrollView>
+                  )}
+                  {recap.caption && <Text style={s.recapCaption}>{recap.caption}</Text>}
+                </Card>
+              );
+            })}
+          </View>
+        )}
+
         {/* Reviews */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>
@@ -290,6 +325,15 @@ const s = StyleSheet.create({
   eventMeta: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   eventBadges: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
   emptyText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center', paddingVertical: 20 },
+
+  // Recaps
+  recapCard: { marginBottom: 10 },
+  recapEventTitle: { fontSize: 15, fontWeight: '600', color: Colors.text, marginBottom: 6 },
+  recapMeta: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
+  recapPhotosScroll: { marginHorizontal: -12, marginBottom: 8 },
+  recapPhotosContent: { paddingHorizontal: 12, gap: 8 },
+  recapPhoto: { width: 140, height: 100, borderRadius: 8, backgroundColor: Colors.surface },
+  recapCaption: { fontSize: 13, color: Colors.textSecondary, lineHeight: 18 },
 
   // Reviews
   starsText: { fontSize: 14, color: Colors.warn },

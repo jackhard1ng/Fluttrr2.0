@@ -164,6 +164,7 @@ model Business {
   chatMembers ChatMember[]
   reviews     Review[]
   stories     Story[]
+  recaps      EventRecap[]
   otpCodes    OtpCode[]
 
   @@index([email])
@@ -201,6 +202,7 @@ model Event {
   childEvents Event[]         @relation("RecurringEvents")
   attendees   EventAttendee[]
   chat        Chat?
+  recap       EventRecap?
 
   @@index([businessId])
   @@index([category])
@@ -406,4 +408,20 @@ model AdminMessage {
   body       String
   sentBy     String   @db.Uuid
   createdAt  DateTime @default(now())
+}
+
+model EventRecap {
+  id             String   @id @default(uuid()) @db.Uuid
+  businessId     String   @db.Uuid
+  eventId        String   @unique @db.Uuid
+  caption        String?
+  photos         String[] @default([])
+  attendeeCount  Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([createdAt])
 }
