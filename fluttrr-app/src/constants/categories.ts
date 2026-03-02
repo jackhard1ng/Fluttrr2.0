@@ -30,12 +30,13 @@ export function getEventColor(eventColor: string | null, category: EventCategory
 
 // Neighborhoods in Kansas City
 export const KC_NEIGHBORHOODS = [
-  { label: 'All KC', emoji: '🏙️' },
-  { label: 'Crossroads', emoji: '🎨' },
-  { label: 'P&L District', emoji: '🎉' },
-  { label: 'River Market', emoji: '🌊' },
-  { label: 'Westport', emoji: '🍺' },
-  { label: 'Southwest Blvd', emoji: '🌮' },
-  { label: 'Plaza', emoji: '🛍️' },
-  { label: 'Midtown', emoji: '🏘️' },
+  { label: 'All KC' },
+  { label: 'Crossroads' },
+  { label: 'P&L District' },
+  { label: 'River Market' },
+  { label: 'Westport' },
+  { label: 'Southwest Blvd' },
+  { label: 'Plaza' },
+  { label: 'Midtown' },
+  { label: 'Other' },
 ] as const;

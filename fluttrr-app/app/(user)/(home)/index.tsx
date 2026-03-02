@@ -18,12 +18,14 @@ import { Colors } from '@/constants/colors';
 import { Config } from '@/constants/config';
 import { useAuthStore } from '@/stores/auth.store';
 import { eventsApi } from '@/api/events';
+import { usersApi } from '@/api/users';
 import type { EventListResponse, FeaturedResponse } from '@/api/events';
 import type { Event } from '@/types/models';
 import { FeaturedEventCard, EventListCard } from '@/components/event/EventCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorView } from '@/components/ui/ErrorView';
 import { StatusDot } from '@/components/ui/Badge';
+import { FluttrLogo } from '@/components/ui/FluttrLogo';
 import { extractErrorMessage } from '@/utils/error';
 
 type EventWithMeta = Event & { attendeeCount: number; spotsLeft: number | null };
@@ -40,6 +42,9 @@ export default function HomeScreen() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Notification unread count
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Admin long-press (5-second hold on logo) + passcode
   const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -94,11 +99,18 @@ export default function HomeScreen() {
     }
   }, []);
 
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const { data } = await usersApi.getNotifications({ page: 1 });
+      setUnreadCount(data.unreadCount);
+    } catch {}
+  }, []);
+
   const loadInitial = useCallback(async () => {
     setInitialLoading(true);
-    await Promise.all([fetchFeatured(), fetchNearYou(1)]);
+    await Promise.all([fetchFeatured(), fetchNearYou(1), fetchUnreadCount()]);
     setInitialLoading(false);
-  }, [fetchFeatured, fetchNearYou]);
+  }, [fetchFeatured, fetchNearYou, fetchUnreadCount]);
 
   useEffect(() => {
     loadInitial();
@@ -106,9 +118,9 @@ export default function HomeScreen() {
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([fetchFeatured(), fetchNearYou(1)]);
+    await Promise.all([fetchFeatured(), fetchNearYou(1), fetchUnreadCount()]);
     setRefreshing(false);
-  }, [fetchFeatured, fetchNearYou]);
+  }, [fetchFeatured, fetchNearYou, fetchUnreadCount]);
 
   const onEndReached = useCallback(async () => {
     if (loadingMore || page >= totalPages) return;
@@ -126,8 +138,10 @@ export default function HomeScreen() {
           onPressIn={startAdminPress}
           onPressOut={endAdminPress}
           activeOpacity={1}
+          style={styles.logoRow}
         >
-          <Text style={styles.logo}>🦋 fluttrr</Text>
+          <FluttrLogo size={28} />
+          <Text style={styles.logo}>fluttrr</Text>
         </TouchableOpacity>
         <View style={styles.headerRight}>
           <TouchableOpacity
@@ -141,7 +155,7 @@ export default function HomeScreen() {
             style={styles.bellButton}
           >
             <Text style={styles.bell}>🔔</Text>
-            <StatusDot style={styles.bellDot} />
+            {unreadCount > 0 && <StatusDot style={styles.bellDot} />}
           </TouchableOpacity>
         </View>
       </View>
@@ -173,7 +187,10 @@ export default function HomeScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.logo}>🦋 fluttrr</Text>
+          <View style={styles.logoRow}>
+            <FluttrLogo size={28} />
+            <Text style={styles.logo}>fluttrr</Text>
+          </View>
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={Colors.blue} />
@@ -273,6 +290,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
+  },
+  logoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   logo: {
     fontSize: 20,

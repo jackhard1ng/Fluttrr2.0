@@ -23,6 +23,7 @@ export interface User {
   displayName: string;
   bio: string | null;
   profilePhoto: string;
+  photos: string[];
   city: string | null;
   lat: number | null;
   lng: number | null;

@@ -54,9 +54,8 @@ describe('KC_NEIGHBORHOODS', () => {
     expect(KC_NEIGHBORHOODS[0].label).toBe('All KC');
   });
 
-  it('every neighborhood has an emoji', () => {
-    for (const n of KC_NEIGHBORHOODS) {
-      expect(n.emoji).toBeTruthy();
-    }
+  it('includes "Other" option', () => {
+    const labels = KC_NEIGHBORHOODS.map((n) => n.label);
+    expect(labels).toContain('Other');
   });
 });

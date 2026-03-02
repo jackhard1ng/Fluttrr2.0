@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
     width: 28,
   },
   rightAction: {
-    width: 28,
+    minWidth: 28,
     alignItems: 'flex-end',
   },
 });

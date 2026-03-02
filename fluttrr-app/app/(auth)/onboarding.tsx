@@ -35,7 +35,7 @@ const SLIDES = [
   {
     emoji: '📸',
     title: 'Share Moments',
-    description: 'Photos and stories from real KC experiences.',
+    description: 'Photos and highlights from real KC experiences.',
     color: Colors.purple,
   },
   {

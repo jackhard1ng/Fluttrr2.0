@@ -238,7 +238,6 @@ export default function CreateEventScreen() {
               <Chip
                 key={n.label}
                 label={n.label}
-                emoji={n.emoji}
                 selected={area === n.label}
                 onPress={() => setArea(area === n.label ? '' : n.label)}
               />
@@ -253,15 +252,6 @@ export default function CreateEventScreen() {
             onChangeText={(t) => setMaxSpots(t.replace(/[^0-9]/g, ''))}
             keyboardType="number-pad"
             icon="👥"
-          />
-
-          {/* Custom Emoji */}
-          <Input
-            label="Custom Emoji (optional)"
-            placeholder="e.g. 🎸 🏈 🎭"
-            value={emoji}
-            onChangeText={setEmoji}
-            maxLength={4}
           />
 
           {/* Recurrence */}

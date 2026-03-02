@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/Input';
 import { useAuthStore } from '@/stores/auth.store';
 import { validateEmail, validatePassword } from '@/utils/validation';
 import { extractErrorMessage } from '@/utils/error';
+import { FluttrLogo } from '@/components/ui/FluttrLogo';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -63,7 +64,7 @@ export default function LoginScreen() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.logoEmoji}>🦋</Text>
+            <FluttrLogo size={72} style={{ marginBottom: 16 }} />
             <Text style={styles.title}>Welcome back!</Text>
             <Text style={styles.subtitle}>
               Sign in to your {isBusiness ? 'business' : ''} account
@@ -165,10 +166,6 @@ const styles = StyleSheet.create({
   header: {
     alignItems: 'center',
     marginBottom: 32,
-  },
-  logoEmoji: {
-    fontSize: 72,
-    marginBottom: 16,
   },
   title: {
     fontSize: 24,

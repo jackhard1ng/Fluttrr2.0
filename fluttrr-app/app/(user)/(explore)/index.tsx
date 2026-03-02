@@ -3,17 +3,17 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   FlatList,
   RefreshControl,
   TouchableOpacity,
   ActivityIndicator,
   TextInput,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
-import { Chip } from '@/components/ui/Chip';
 import { EventListCard } from '@/components/event/EventCard';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ErrorView } from '@/components/ui/ErrorView';
@@ -27,11 +27,10 @@ import type { Event } from '@/types/models';
 type EventWithMeta = Event & { attendeeCount: number; spotsLeft: number | null };
 
 const CATEGORIES = [
-  { key: null, label: 'All', emoji: '✨' },
+  { key: null, label: 'All Types' },
   ...Object.entries(CATEGORY_META).map(([key, meta]) => ({
     key: key as EventCategory,
     label: meta.label,
-    emoji: meta.emoji,
   })),
 ];
 
@@ -50,6 +49,9 @@ export default function ExploreScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [showAreaDropdown, setShowAreaDropdown] = useState(false);
+
   const fetchEvents = useCallback(
     async (pageNum = 1, append = false) => {
       const params: EventListParams = {
@@ -60,7 +62,6 @@ export default function ExploreScreen() {
       if (selectedCategory) params.category = selectedCategory;
       if (selectedArea) params.area = selectedArea;
       if (searchQuery.trim().length >= 2) params.search = searchQuery.trim();
-      // Pass device location for distance-based sorting
       if (locationGranted && !selectedArea) {
         params.lat = lat;
         params.lng = lng;
@@ -102,6 +103,10 @@ export default function ExploreScreen() {
     setLoadingMore(false);
   }, [loadingMore, page, totalPages, fetchEvents]);
 
+  const selectedCategoryLabel =
+    CATEGORIES.find((c) => c.key === selectedCategory)?.label || 'All Types';
+  const selectedAreaLabel = selectedArea || 'All KC';
+
   const ListHeader = () => (
     <>
       {/* Title */}
@@ -123,50 +128,34 @@ export default function ExploreScreen() {
         />
       </View>
 
-      {/* Category filter pills */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}
-      >
-        {CATEGORIES.map((cat) => (
-          <Chip
-            key={cat.key || 'all'}
-            label={cat.label}
-            emoji={cat.emoji}
-            selected={selectedCategory === cat.key}
-            onPress={() =>
-              setSelectedCategory(selectedCategory === cat.key ? null : cat.key)
-            }
-            color={
-              cat.key ? CATEGORY_META[cat.key]?.color || Colors.blue : Colors.blue
-            }
-          />
-        ))}
-      </ScrollView>
+      {/* Dropdown filters row */}
+      <View style={styles.dropdownRow}>
+        <TouchableOpacity
+          style={[styles.dropdown, selectedCategory && styles.dropdownActive]}
+          onPress={() => setShowCategoryDropdown(true)}
+        >
+          <Text
+            style={[styles.dropdownText, selectedCategory && styles.dropdownTextActive]}
+            numberOfLines={1}
+          >
+            {selectedCategoryLabel}
+          </Text>
+          <Text style={styles.dropdownArrow}>▾</Text>
+        </TouchableOpacity>
 
-      {/* Neighborhood filter pills */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}
-      >
-        {KC_NEIGHBORHOODS.map((nb) => (
-          <Chip
-            key={nb.label}
-            label={nb.label}
-            emoji={nb.emoji}
-            selected={
-              nb.label === 'All KC'
-                ? selectedArea === null
-                : selectedArea === nb.label
-            }
-            onPress={() =>
-              setSelectedArea(nb.label === 'All KC' ? null : nb.label)
-            }
-          />
-        ))}
-      </ScrollView>
+        <TouchableOpacity
+          style={[styles.dropdown, selectedArea && styles.dropdownActive]}
+          onPress={() => setShowAreaDropdown(true)}
+        >
+          <Text
+            style={[styles.dropdownText, selectedArea && styles.dropdownTextActive]}
+            numberOfLines={1}
+          >
+            {selectedAreaLabel}
+          </Text>
+          <Text style={styles.dropdownArrow}>▾</Text>
+        </TouchableOpacity>
+      </View>
     </>
   );
 
@@ -218,6 +207,73 @@ export default function ExploreScreen() {
         onEndReached={onEndReached}
         onEndReachedThreshold={0.3}
       />
+
+      {/* Category dropdown modal */}
+      <Modal visible={showCategoryDropdown} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowCategoryDropdown(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Event Type</Text>
+            {CATEGORIES.map((cat) => (
+              <TouchableOpacity
+                key={cat.key || 'all'}
+                style={[
+                  styles.modalOption,
+                  selectedCategory === cat.key && styles.modalOptionActive,
+                ]}
+                onPress={() => {
+                  setSelectedCategory(cat.key);
+                  setShowCategoryDropdown(false);
+                }}
+              >
+                <Text
+                  style={[
+                    styles.modalOptionText,
+                    selectedCategory === cat.key && styles.modalOptionTextActive,
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+                {selectedCategory === cat.key && (
+                  <Text style={styles.checkmark}>✓</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Area dropdown modal */}
+      <Modal visible={showAreaDropdown} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowAreaDropdown(false)}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Neighborhood</Text>
+            {KC_NEIGHBORHOODS.map((nb) => {
+              const isSelected =
+                nb.label === 'All KC' ? selectedArea === null : selectedArea === nb.label;
+              return (
+                <TouchableOpacity
+                  key={nb.label}
+                  style={[styles.modalOption, isSelected && styles.modalOptionActive]}
+                  onPress={() => {
+                    setSelectedArea(nb.label === 'All KC' ? null : nb.label);
+                    setShowAreaDropdown(false);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.modalOptionText,
+                      isSelected && styles.modalOptionTextActive,
+                    ]}
+                  >
+                    {nb.label}
+                  </Text>
+                  {isSelected && <Text style={styles.checkmark}>✓</Text>}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -260,10 +316,41 @@ const styles = StyleSheet.create({
     color: Colors.text,
     padding: 0,
   },
-  filterScroll: {
+  dropdownRow: {
+    flexDirection: 'row',
     paddingHorizontal: 16,
-    gap: 8,
+    gap: 10,
     marginBottom: 12,
+  },
+  dropdown: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    backgroundColor: Colors.surface,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  dropdownActive: {
+    borderColor: Colors.blue,
+    backgroundColor: Colors.blue + '15',
+  },
+  dropdownText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    flex: 1,
+  },
+  dropdownTextActive: {
+    color: Colors.blue,
+  },
+  dropdownArrow: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginLeft: 6,
   },
   listContent: {
     paddingBottom: 80,
@@ -271,5 +358,55 @@ const styles = StyleSheet.create({
   centered: {
     padding: 40,
     alignItems: 'center',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '80%',
+    maxHeight: '70%',
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  modalOptionActive: {
+    backgroundColor: Colors.blue + '15',
+  },
+  modalOptionText: {
+    fontSize: 15,
+    color: Colors.text,
+  },
+  modalOptionTextActive: {
+    color: Colors.blue,
+    fontWeight: '600',
+  },
+  checkmark: {
+    fontSize: 16,
+    color: Colors.blue,
+    fontWeight: '700',
   },
 });

@@ -20,12 +20,14 @@ import { businessApi, type BusinessEventItem } from '@/api/business';
 import { extractErrorMessage } from '@/utils/error';
 import { getEventEmoji, getEventColor, CATEGORY_META } from '@/constants/categories';
 import { formatEventDate, formatTimeRange } from '@/utils/date';
+import { useAuthStore } from '@/stores/auth.store';
 import type { EventCategory } from '@/types/enums';
 
 type FilterType = 'all' | 'active' | 'past';
 
 export default function BusinessEventsScreen() {
   const router = useRouter();
+  const business = useAuthStore((s) => s.business);
   const [events, setEvents] = useState<BusinessEventItem[]>([]);
   const [filter, setFilter] = useState<FilterType>('all');
   const [loading, setLoading] = useState(true);
@@ -93,12 +95,18 @@ export default function BusinessEventsScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Your Events</Text>
-        <TouchableOpacity
-          style={styles.createBtn}
-          onPress={() => router.push('/(business)/(events)/create')}
-        >
-          <Text style={styles.createBtnText}>+ New Event</Text>
-        </TouchableOpacity>
+        {business?.verified ? (
+          <TouchableOpacity
+            style={styles.createBtn}
+            onPress={() => router.push('/(business)/(events)/create')}
+          >
+            <Text style={styles.createBtnText}>+ New Event</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.pendingChip}>
+            <Text style={styles.pendingChipText}>Verification Pending</Text>
+          </View>
+        )}
       </View>
 
       <View style={styles.filterRow}>
@@ -144,6 +152,8 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 22, fontWeight: '700', color: Colors.text },
   createBtn: { backgroundColor: Colors.blue, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
   createBtnText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+  pendingChip: { backgroundColor: Colors.warn + '20', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, borderWidth: 1, borderColor: Colors.warn + '40' },
+  pendingChipText: { fontSize: 12, fontWeight: '600', color: Colors.warn },
   filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginVertical: 10 },
   eventCard: { marginBottom: 10 },
   eventRow: { flexDirection: 'row', gap: 12 },

@@ -115,6 +115,7 @@ export interface UpdateUserData {
   displayName?: string;
   bio?: string;
   profilePhoto?: string;
+  photos?: string[];
   city?: string;
   fcmToken?: string;
 }

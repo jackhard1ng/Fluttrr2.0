@@ -82,6 +82,9 @@ router.post('/register', registerLimiter, validate(registerUserSchema), async (r
 
     const passwordHash = await hashPassword(password);
 
+    // Auto-promote to admin if email matches ADMIN_EMAIL
+    const isAdmin = process.env.ADMIN_EMAIL && email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase();
+
     const user = await prisma.user.create({
       data: {
         email,
@@ -92,6 +95,7 @@ router.post('/register', registerLimiter, validate(registerUserSchema), async (r
         bio,
         city: city || 'Kansas City',
         emailVerified: true,
+        ...(isAdmin && { role: 'ADMIN' }),
       },
     });
 
@@ -189,17 +193,23 @@ router.post('/login', loginLimiter, validate(loginSchema), async (req, res, next
 
     clearAttempts(email);
 
-    await prisma.user.update({
+    // Auto-promote to admin if email matches ADMIN_EMAIL
+    const shouldBeAdmin = process.env.ADMIN_EMAIL && email.toLowerCase() === process.env.ADMIN_EMAIL.toLowerCase();
+    const updatedUser = await prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+      data: {
+        lastLoginAt: new Date(),
+        ...(shouldBeAdmin && user.role !== 'ADMIN' && { role: 'ADMIN' }),
+      },
     });
+    const finalUser = { ...user, ...updatedUser };
 
-    const tokenPayload = { id: user.id, email: user.email, type: 'user', role: user.role };
+    const tokenPayload = { id: finalUser.id, email: finalUser.email, type: 'user', role: finalUser.role };
     const accessToken = signAccessToken(tokenPayload);
     const refreshToken = signRefreshToken(tokenPayload);
 
     res.json({
-      user: sanitizeUser(user),
+      user: sanitizeUser(finalUser),
       accessToken,
       refreshToken,
     });

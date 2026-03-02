@@ -41,8 +41,8 @@ router.get('/profile', requireBusiness, async (req, res, next) => {
 router.put('/profile', requireBusiness, validate(updateBusinessSchema), async (req, res, next) => {
   try {
     // Whitelist safe fields to prevent verified/status manipulation
-    const { businessName, description, address, phone, website, logo, city, fcmToken } = req.body;
-    const updateData = { businessName, description, address, phone, website, logo, city, fcmToken };
+    const { businessName, description, address, phone, website, logo, photos, city, fcmToken } = req.body;
+    const updateData = { businessName, description, address, phone, website, logo, photos, city, fcmToken };
 
     // Re-geocode if address or city changed
     if (address || city) {

@@ -106,6 +106,7 @@ model User {
   displayName   String
   bio           String?
   profilePhoto  String
+  photos        String[]        @default([])
   city          String?
   lat           Float?
   lng           Float?

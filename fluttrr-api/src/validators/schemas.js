@@ -77,6 +77,7 @@ const updateUserSchema = z.object({
   displayName: z.string().min(1).max(50).optional(),
   bio: z.string().max(500).optional(),
   profilePhoto: z.string().min(1).optional(),
+  photos: z.array(z.string()).max(9).optional(),
   city: z.string().max(100).optional(),
   fcmToken: z.string().optional(),
 });
@@ -88,6 +89,7 @@ const updateBusinessSchema = z.object({
   phone: z.string().max(20).optional(),
   website: z.string().url('Invalid URL').or(z.literal('')).optional(),
   logo: z.string().optional(),
+  photos: z.array(z.string()).max(10).optional(),
   city: z.string().max(100).optional(),
   fcmToken: z.string().optional(),
 });

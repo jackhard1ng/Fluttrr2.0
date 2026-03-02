@@ -70,6 +70,7 @@ export const businessApi = {
     phone?: string;
     website?: string;
     logo?: string;
+    photos?: string[];
     fcmToken?: string;
   }) {
     return client.put<BusinessProfileResponse>('/api/business/profile', data);

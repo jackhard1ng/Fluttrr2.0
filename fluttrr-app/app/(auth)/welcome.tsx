@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/colors';
 import { Layout } from '@/constants/layout';
 import { Button } from '@/components/ui/Button';
+import { FluttrLogo } from '@/components/ui/FluttrLogo';
 
 const { width } = Dimensions.get('window');
 
@@ -51,17 +52,14 @@ export default function WelcomeScreen() {
         {/* Logo area with glow */}
         <View style={styles.logoArea}>
           <View style={styles.glow} />
-          <Animated.Text
-            style={[
-              styles.logoEmoji,
-              {
-                transform: [{ scale: logoScale }],
-                opacity: logoOpacity,
-              },
-            ]}
+          <Animated.View
+            style={{
+              transform: [{ scale: logoScale }],
+              opacity: logoOpacity,
+            }}
           >
-            🦋
-          </Animated.Text>
+            <FluttrLogo size={80} />
+          </Animated.View>
           <Animated.Text style={[styles.logoText, { opacity: logoOpacity }]}>
             fluttrr
           </Animated.Text>
@@ -129,8 +127,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.blueGlow,
     top: -50,
   },
-  logoEmoji: {
-    fontSize: 80,
+  logoImage: {
     marginBottom: 12,
   },
   logoText: {

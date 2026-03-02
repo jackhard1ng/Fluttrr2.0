@@ -315,7 +315,6 @@ export default function EditEventScreen() {
               <Chip
                 key={n.label}
                 label={n.label}
-                emoji={n.emoji}
                 selected={area === n.label}
                 onPress={() => setArea(area === n.label ? '' : n.label)}
               />
