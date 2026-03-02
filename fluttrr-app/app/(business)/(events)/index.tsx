@@ -59,6 +59,7 @@ export default function BusinessEventsScreen() {
     const emoji = getEventEmoji(item.emoji, item.category);
     const color = getEventColor(item.color, item.category);
     const catMeta = CATEGORY_META[item.category as EventCategory];
+    const isPast = new Date(item.date) < new Date();
 
     return (
       <Card
@@ -80,12 +81,25 @@ export default function BusinessEventsScreen() {
               <Badge label={`${item.views} views`} color={Colors.textSecondary} />
             </View>
           </View>
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => router.push({ pathname: '/(business)/(events)/[id]', params: { id: item.id } })}
-          >
-            <Text style={styles.editBtnText}>Edit</Text>
-          </TouchableOpacity>
+          <View style={styles.actionBtns}>
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => router.push({ pathname: '/(business)/(events)/[id]', params: { id: item.id } })}
+            >
+              <Text style={styles.editBtnText}>Edit</Text>
+            </TouchableOpacity>
+            {isPast && (
+              <TouchableOpacity
+                style={styles.recapBtn}
+                onPress={() => router.push({
+                  pathname: '/(business)/(events)/recap',
+                  params: { eventId: item.id, eventTitle: item.title },
+                })}
+              >
+                <Text style={styles.recapBtnText}>Recap</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
       </Card>
     );
@@ -163,6 +177,9 @@ const styles = StyleSheet.create({
   eventTitle: { fontSize: 15, fontWeight: '600', color: Colors.text },
   eventMeta: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   eventBadges: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
-  editBtn: { backgroundColor: Colors.blue + '20', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, alignSelf: 'center' },
+  actionBtns: { gap: 6, alignSelf: 'center' },
+  editBtn: { backgroundColor: Colors.blue + '20', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
   editBtnText: { fontSize: 12, fontWeight: '600', color: Colors.blue },
+  recapBtn: { backgroundColor: Colors.success + '20', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8 },
+  recapBtnText: { fontSize: 12, fontWeight: '600', color: Colors.success },
 });

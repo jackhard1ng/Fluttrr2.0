@@ -164,6 +164,7 @@ model Business {
   chatMembers ChatMember[]
   reviews     Review[]
   stories     Story[]
+  eventRecaps EventRecap[]
   otpCodes    OtpCode[]
 
   @@index([email])
@@ -201,6 +202,7 @@ model Event {
   childEvents Event[]         @relation("RecurringEvents")
   attendees   EventAttendee[]
   chat        Chat?
+  recap       EventRecap?
 
   @@index([businessId])
   @@index([category])
@@ -335,6 +337,23 @@ model Story {
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
+}
+
+model EventRecap {
+  id         String   @id @default(uuid()) @db.Uuid
+  businessId String   @db.Uuid
+  eventId    String   @db.Uuid
+  content    String?
+  photos     String[] @default([])
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, eventId])
+  @@index([businessId])
+  @@index([eventId])
 }
 
 model Report {

@@ -211,6 +211,10 @@ export default function BizProfileScreen() {
             <Text style={styles.menuLabel}>Reviews</Text>
             <Text style={styles.menuArrow}>›</Text>
           </TouchableOpacity>
+          <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(business)/(profile)/recaps')}>
+            <Text style={styles.menuLabel}>Your Recaps</Text>
+            <Text style={styles.menuArrow}>›</Text>
+          </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/(business)/(profile)/subscriptions')}>
             <Text style={styles.menuLabel}>Subscription</Text>
             <Text style={styles.menuArrow}>›</Text>

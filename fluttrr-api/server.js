@@ -178,6 +178,7 @@ app.use('/api/events', require('./src/routes/events'));
 app.use('/api/chats', require('./src/routes/chats'));
 app.use('/api/admin', require('./src/routes/admin'));
 app.use('/api/moments', require('./src/routes/moments'));
+app.use('/api/recaps', require('./src/routes/eventRecaps'));
 app.use('/api/uploads', require('./src/routes/uploads'));
 app.use('/api/stripe', require('./src/routes/stripe'));
 app.use('/api/web', require('./src/routes/web'));

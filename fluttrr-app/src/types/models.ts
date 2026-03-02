@@ -228,3 +228,17 @@ export interface Story {
   createdAt: string;
   business?: Business;
 }
+
+export interface EventRecap {
+  id: string;
+  businessId: string;
+  eventId: string;
+  content: string | null;
+  photos: string[];
+  createdAt: string;
+  updatedAt: string;
+  business?: Pick<Business, 'id' | 'businessName' | 'logo' | 'verified'>;
+  event?: Pick<Event, 'id' | 'title' | 'category' | 'date' | 'emoji' | 'color'> & {
+    _count?: { attendees?: number };
+  };
+}

@@ -22,7 +22,7 @@ import { extractErrorMessage } from '@/utils/error';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, logout, setUser } = useAuthStore();
+  const { user, logout, setUser, isAdmin } = useAuthStore();
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const handleLogout = () => {
@@ -138,6 +138,9 @@ export default function ProfileScreen() {
           <MenuItem label="Notifications" onPress={() => router.push('/(user)/(home)/notifications')} />
           <MenuItem label="Settings" onPress={() => router.push('/(user)/(profile)/settings')} />
           <MenuItem label="Help & FAQ" onPress={() => router.push('/(user)/(profile)/help')} />
+          {isAdmin && (
+            <MenuItem label="Admin Panel" onPress={() => router.push('/(admin)/(dashboard)')} />
+          )}
         </Card>
 
         <Button

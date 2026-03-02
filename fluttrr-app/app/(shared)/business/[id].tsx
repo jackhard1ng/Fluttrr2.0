@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Linking,
   Share,
+  Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,18 +18,20 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { ErrorView } from '@/components/ui/ErrorView';
-import { EmptyState } from '@/components/ui/EmptyState';
 import { businessPublicApi, type PublicBusinessResponse } from '@/api/business';
+import { recapsApi } from '@/api/recaps';
 import { getEventEmoji, getEventColor, CATEGORY_META } from '@/constants/categories';
 import { formatEventDate, formatTimeRange } from '@/utils/date';
 import { extractErrorMessage } from '@/utils/error';
 import type { EventCategory } from '@/types/enums';
+import type { EventRecap } from '@/types/models';
 
 export default function BusinessDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
 
   const [biz, setBiz] = useState<PublicBusinessResponse | null>(null);
+  const [recaps, setRecaps] = useState<EventRecap[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,8 +40,12 @@ export default function BusinessDetailScreen() {
     setLoading(true);
     setError(null);
     try {
-      const { data } = await businessPublicApi.getById(id);
-      setBiz(data);
+      const [bizRes, recapsRes] = await Promise.all([
+        businessPublicApi.getById(id),
+        recapsApi.forBusiness(id, { limit: 10 }).catch(() => ({ data: { recaps: [] } })),
+      ]);
+      setBiz(bizRes.data);
+      setRecaps(recapsRes.data.recaps);
     } catch (err) {
       setError(extractErrorMessage(err));
     } finally {
@@ -181,6 +188,48 @@ export default function BusinessDetailScreen() {
           )}
         </View>
 
+        {/* Event Recaps */}
+        {recaps.length > 0 && (
+          <View style={s.section}>
+            <Text style={s.sectionTitle}>Past Event Recaps</Text>
+            {recaps.map((recap) => {
+              const recapEmoji = recap.event ? getEventEmoji(recap.event.emoji, recap.event.category) : '';
+              const recapColor = recap.event ? getEventColor(recap.event.color, recap.event.category) : Colors.blue;
+              return (
+                <Card key={recap.id} style={s.recapCard}>
+                  <View style={s.recapHeader}>
+                    <View style={[s.recapIcon, { backgroundColor: recapColor + '22' }]}>
+                      <Text style={{ fontSize: 16 }}>{recapEmoji}</Text>
+                    </View>
+                    <View style={s.recapHeaderInfo}>
+                      <Text style={s.recapEventTitle} numberOfLines={1}>
+                        {recap.event?.title || 'Event'}
+                      </Text>
+                      {recap.event?.date && (
+                        <Text style={s.recapDate}>{formatEventDate(recap.event.date)}</Text>
+                      )}
+                    </View>
+                  </View>
+                  {recap.content && (
+                    <Text style={s.recapContent}>{recap.content}</Text>
+                  )}
+                  {recap.photos.length > 0 && (
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={s.recapPhotosScroll}
+                    >
+                      {recap.photos.map((uri, i) => (
+                        <Image key={i} source={{ uri }} style={s.recapPhoto} />
+                      ))}
+                    </ScrollView>
+                  )}
+                </Card>
+              );
+            })}
+          </View>
+        )}
+
         {/* Reviews */}
         <View style={s.section}>
           <Text style={s.sectionTitle}>
@@ -290,6 +339,17 @@ const s = StyleSheet.create({
   eventMeta: { fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   eventBadges: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
   emptyText: { fontSize: 14, color: Colors.textMuted, textAlign: 'center', paddingVertical: 20 },
+
+  // Recaps
+  recapCard: { marginBottom: 10 },
+  recapHeader: { flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 8 },
+  recapIcon: { width: 36, height: 36, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  recapHeaderInfo: { flex: 1 },
+  recapEventTitle: { fontSize: 14, fontWeight: '600', color: Colors.text },
+  recapDate: { fontSize: 12, color: Colors.textSecondary, marginTop: 1 },
+  recapContent: { fontSize: 14, color: Colors.textSecondary, lineHeight: 20, marginBottom: 8 },
+  recapPhotosScroll: { gap: 8 },
+  recapPhoto: { width: 140, height: 140, borderRadius: 10, backgroundColor: Colors.surface },
 
   // Reviews
   starsText: { fontSize: 14, color: Colors.warn },

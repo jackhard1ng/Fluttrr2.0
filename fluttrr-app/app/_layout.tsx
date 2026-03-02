@@ -11,7 +11,7 @@ import { addNotificationResponseListener } from '@/services/notifications';
 const ONBOARDING_KEY = '@fluttrr_onboarded';
 
 export default function RootLayout() {
-  const { isAuthenticated, isLoading, accountType, isAdmin, pendingOtpEmail, hydrate } =
+  const { isAuthenticated, isLoading, accountType, pendingOtpEmail, hydrate } =
     useAuthStore();
   const router = useRouter();
   const segments = useSegments() as string[];
@@ -94,15 +94,13 @@ export default function RootLayout() {
       }
     } else if (isAuthenticated && inAuthGroup) {
       // Logged in but still in auth screens -> go to main flow
-      if (isAdmin) {
-        router.replace('/(admin)/(dashboard)');
-      } else if (accountType === 'business') {
+      if (accountType === 'business') {
         router.replace('/(business)/(dashboard)');
       } else {
         router.replace('/(user)/(home)');
       }
     }
-  }, [isAuthenticated, isLoading, accountType, isAdmin, pendingOtpEmail, segments, onboardingChecked, needsOnboarding]);
+  }, [isAuthenticated, isLoading, accountType, pendingOtpEmail, segments, onboardingChecked, needsOnboarding]);
 
   if (isLoading || !onboardingChecked) {
     return <LoadingSpinner fullScreen />;

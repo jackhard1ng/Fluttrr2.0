@@ -135,6 +135,19 @@ const createMomentSchema = z.object({
   eventId: z.string().uuid().optional(),
 });
 
+// ─── Event Recap Schema ─────────────────────────────────
+
+const createEventRecapSchema = z.object({
+  eventId: z.string().uuid('Invalid event ID'),
+  content: z.string().max(2000).optional(),
+  photos: z.array(z.string()).max(10).optional().default([]),
+});
+
+const updateEventRecapSchema = z.object({
+  content: z.string().max(2000).optional(),
+  photos: z.array(z.string()).max(10).optional(),
+});
+
 // ─── Admin Message Schema ────────────────────────────────
 
 const adminMessageSchema = z.object({
@@ -176,6 +189,8 @@ module.exports = {
   updateReviewSchema,
   createReportSchema,
   createMomentSchema,
+  createEventRecapSchema,
+  updateEventRecapSchema,
   adminMessageSchema,
   validate,
 };
