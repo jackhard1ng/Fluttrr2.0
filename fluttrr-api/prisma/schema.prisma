@@ -342,7 +342,7 @@ model Story {
 model EventRecap {
   id         String   @id @default(uuid()) @db.Uuid
   businessId String   @db.Uuid
-  eventId    String   @db.Uuid
+  eventId    String   @unique @db.Uuid
   content    String?
   photos     String[] @default([])
   createdAt  DateTime @default(now())
@@ -351,7 +351,6 @@ model EventRecap {
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   event    Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
-  @@unique([businessId, eventId])
   @@index([businessId])
   @@index([eventId])
 }
